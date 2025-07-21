@@ -1,181 +1,27 @@
-name: Build iOS IPA
+﻿name: 🍎 Build iOS IPA
 
 on:
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'نوع البناء'
-        required: true
-        default: 'development'
-        type: choice
-        options:
-        - development
-        - ad-hoc
 
 jobs:
   build-ios:
+    name: 🍎 Build iOS App
     runs-on: macos-latest
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
+    - uses: actions/checkout@v4
+    - uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.16.0'
+        flutter-version: '3.24.0'
         channel: 'stable'
-    
-    - name: Install dependencies
-      run: flutter pub get
-    
-    - name: Clean build
-      run: flutter clean
-    
-    - name: Build Flutter iOS (Release)
-      run: flutter build ios --release --no-codesign
-    
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
+    - run: flutter pub get
+    - run: flutter build ios --release --no-codesign
+    - run: |
+        cd build/ios/iphoneos
+        mkdir -p Payload
+        cp -r Runner.app Payload/
+        zip -r ../../../sr3h-ios.ipa Payload/
+    - uses: actions/upload-artifact@v4
       with:
-        xcode-version: latest-stable
-    
-    - name: Create ExportOptions.plist
-      run: |
-        cat > ExportOptions.plist << 'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>method</key>
-            <string>${{ github.event.inputs.build_type }}</string>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <false/>
-            <key>compileBitcode</key>
-            <false/>
-            <key>signingStyle</key>
-            <string>automatic</string>
-            <key>stripSwiftSymbols</key>
-            <true/>
-            <key>thinning</key>
-            <string>&lt;none&gt;</string>
-        </dict>
-        </plist>
-        EOF
-    
-    - name: Build Archive
-      run: |
-        xcodebuild -workspace ios/Runner.xcworkspace \
-                   -scheme Runner \
-                   -configuration Release \
-                   -destination generic/platform=iOS \
-                   -archivePath build/ios/Runner.xcarchive \
-                   archive
-    
-    - name: Export IPA
-      run: |
-        xcodebuild -exportArchive \
-                   -archivePath build/ios/Runner.xcarchive \
-                   -exportPath build/ios/ipa \
-                   -exportOptionsPlist ExportOptions.plist
-    
-    - name: Rename IPA
-      run: |
-        cd build/ios/ipa
-        for file in *.ipa; do
-          if [ -f "$file" ]; then
-            mv "$file" "SR3H-VideoConverter-v2.0.6-${{ github.event.inputs.build_type }}-$(date +%Y%m%d-%H%M%S).ipa"
-          fi
-        done
-    
-    - name: Upload IPA Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: SR3H-VideoConverter-IPA-${{ github.event.inputs.build_type }}
-        path: build/ios/ipa/*.ipa
-        retention-days: 30
-    
-    - name: Create iOS Release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ios-v2.0.6-${{ github.event.inputs.build_type }}-${{ github.run_number }}
-        name: محوّل سرعة iOS v2.0.6 (${{ github.event.inputs.build_type }})
-        body: |
-          ## 📱 محوّل سرعة - نسخة iOS
-          
-          ### 🎯 معلومات البناء:
-          - **الإصدار:** 2.0.6
-          - **نوع البناء:** ${{ github.event.inputs.build_type }}
-          - **تاريخ البناء:** $(date)
-          - **المنصة:** iOS 12.0+
-          
-          ### ✨ الميزات:
-          - ✅ تحويل الفيديو إلى 60 إطار في الثانية
-          - ✅ نظام تفعيل عبر البريد الإلكتروني
-          - ✅ واجهة عربية كاملة ومتجاوبة
-          - ✅ دعم جميع صيغ الفيديو الشائعة
-          - ✅ حفظ منظم في مجلد SR3H
-          - ✅ فحص متطلبات الفيديو التلقائي
-          
-          ### 📱 التثبيت:
-          1. **حمّل ملف IPA** من الأسفل
-          2. **ثبّت باستخدام:**
-             - AltStore (الأفضل)
-             - Sideloadly
-             - 3uTools
-             - Xcode (للمطورين)
-          3. **وثّق المطور** في: الإعدادات > عام > إدارة الجهاز
-          4. **افتح التطبيق** واستمتع!
-          
-          ### 🔐 التفعيل:
-          - **البريد التجريبي:** test@example.com
-          - **أو استخدم بريدك الشخصي**
-          
-          ### 📋 متطلبات النظام:
-          - iOS 12.0 أو أحدث
-          - iPhone أو iPad
-          - مساحة تخزين ~50 MB
-          - اتصال إنترنت للتفعيل
-          
-          ### 🛠️ نوع البناء:
-          - **Development:** للاختبار الشخصي (صالح 7 أيام)
-          - **Ad-Hoc:** لأجهزة محددة (صالح سنة كاملة)
-          
-          ### 📞 الدعم الفني:
-          - **البريد:** ios-support@sr3h.com
-          - **متوفرون 24/7** لمساعدتك
-          
-          ---
-          
-          ### 🎉 ملف IPA صحيح ومهني!
-          **مبني بـ xcodebuild على macOS حقيقي - بدون ملفات .dart مصدرية**
-        files: build/ios/ipa/*.ipa
-        draft: false
-        prerelease: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Build Summary
-      run: |
-        echo "## 🎉 تم بناء IPA بنجاح!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📱 معلومات البناء" >> $GITHUB_STEP_SUMMARY
-        echo "- **اسم التطبيق:** محوّل سرعة SR3H" >> $GITHUB_STEP_SUMMARY
-        echo "- **الإصدار:** 2.0.6" >> $GITHUB_STEP_SUMMARY
-        echo "- **نوع البناء:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **المنصة:** iOS" >> $GITHUB_STEP_SUMMARY
-        echo "- **تاريخ البناء:** $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📥 التحميل" >> $GITHUB_STEP_SUMMARY
-        echo "ملف IPA متوفر في قسم **Artifacts** أعلاه." >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🚀 التثبيت" >> $GITHUB_STEP_SUMMARY
-        echo "1. حمّل ملف IPA من Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "2. ثبّت باستخدام AltStore أو Sideloadly أو Xcode" >> $GITHUB_STEP_SUMMARY
-        echo "3. وثّق شهادة المطور في إعدادات iOS" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ✅ جاهز للاستخدام!" >> $GITHUB_STEP_SUMMARY
-        echo "ملف IPA المهني جاهز للتثبيت!" >> $GITHUB_STEP_SUMMARY
+        name: sr3h-ios-app
+        path: sr3h-ios.ipa
