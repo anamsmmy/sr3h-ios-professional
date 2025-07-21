@@ -1,0 +1,12 @@
+{
+    "dart.flutterSdkPath": null,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit"
+    },
+    "dart.lineLength": 100,
+    "files.associations": {
+        "*.dart": "dart"
+    },
+    "zencoder.enableRepoIndexing": true
+}
