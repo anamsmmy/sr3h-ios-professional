@@ -43,6 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-APK_SR3H_FINAL/*.apk 
-APK_SR3H_FINAL/*.apk 
-APK_SR3H_FINAL/*.apk 
+# APK Files - too large for git
+APK_SR3H_FINAL/
+APK_FINAL/
+*.apk
+*.ipa
+
+# Large build files
+/build/
+**/build/
+
+# Backup directories
+C:/SR3H_PROPER_IPA/
+C:/SR3H_BACKUP_COMPLETE/ 
