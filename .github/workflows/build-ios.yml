@@ -42,10 +42,12 @@ jobs:
         xcode-version: '15.0'
         
     - name: ?? Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: 'latest'
-        channel: 'stable'
+      run: |
+        git clone https://github.com/flutter/flutter.git -b stable --depth 1
+        echo "$PWD/flutter/bin" >> $GITHUB_PATH
+        export PATH="$PWD/flutter/bin:$PATH"
+        flutter --version
+        flutter doctor
         
     - name: ?? Verify Flutter Installation
       run: |
@@ -279,6 +281,8 @@ jobs:
         echo "2. Use AltStore, Sideloadly, or 3uTools" >> $GITHUB_STEP_SUMMARY
         echo "3. Install with your Apple ID" >> $GITHUB_STEP_SUMMARY
         echo "4. Trust the developer in Settings" >> $GITHUB_STEP_SUMMARY
+
+
 
 
 
