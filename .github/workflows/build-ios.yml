@@ -1,27 +1,163 @@
-﻿name: 🍎 Build iOS IPA
+﻿name: 🍎 Build iOS IPA - محوّل سرعة SR3H
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'نوع البناء'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - ad-hoc
+        - app-store
 
 jobs:
   build-ios:
     name: 🍎 Build iOS App
     runs-on: macos-latest
+    timeout-minutes: 60
     
     steps:
-    - uses: actions/checkout@v4
-    - uses: subosito/flutter-action@v2
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🍎 Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: 🎯 Setup Flutter
+      uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.24.0'
         channel: 'stable'
-    - run: flutter pub get
-    - run: flutter build ios --release --no-codesign
-    - run: |
+        
+    - name: 📦 Install Dependencies
+      run: flutter pub get
+      
+    - name: 🔧 Clean iOS Build
+      run: |
+        flutter clean
+        cd ios
+        rm -rf Pods
+        rm -rf .symlinks
+        rm -rf Flutter/Flutter.framework
+        rm -rf Flutter/Flutter.podspec
+        rm -rf build/
+        
+    - name: 🔧 Pod Install with iOS 12.0
+      run: |
+        cd ios
+        pod install --repo-update
+        
+    - name: 📝 Create Export Options
+      run: |
+        cat > ios/ExportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>${{ github.event.inputs.build_type }}</string>
+            <key>teamID</key>
+            <string></string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <false/>
+            <key>signingStyle</key>
+            <string>automatic</string>
+        </dict>
+        </plist>
+        EOF
+        
+    - name: 📱 Build iOS (No Codesign)
+      run: |
+        flutter build ios --release --no-codesign --verbose
+        
+    - name: 🏗️ Build Archive with Xcode
+      run: |
+        cd ios
+        xcodebuild -workspace Runner.xcworkspace \
+                   -scheme Runner \
+                   -configuration Release \
+                   -destination generic/platform=iOS \
+                   -archivePath ../build/ios/Runner.xcarchive \
+                   archive \
+                   CODE_SIGNING_ALLOWED=NO \
+                   CODE_SIGNING_REQUIRED=NO \
+                   CODE_SIGN_IDENTITY="" \
+                   PROVISIONING_PROFILE=""
+        
+    - name: 📦 Export IPA
+      run: |
+        cd ios
+        xcodebuild -exportArchive \
+                   -archivePath ../build/ios/Runner.xcarchive \
+                   -exportPath ../build/ios/ipa \
+                   -exportOptionsPlist ExportOptions.plist \
+                   -allowProvisioningUpdates
+        
+    - name: 📦 Create Manual IPA (Fallback)
+      if: failure()
+      run: |
         cd build/ios/iphoneos
         mkdir -p Payload
         cp -r Runner.app Payload/
-        zip -r ../../../sr3h-ios.ipa Payload/
-    - uses: actions/upload-artifact@v4
+        zip -r ../../../sr3h-ios-manual.ipa Payload/
+        
+    - name: 📋 List Generated Files
+      run: |
+        echo "=== Generated Files ==="
+        find build/ios -name "*.ipa" -o -name "*.app" | head -10
+        ls -la build/ios/ipa/ || echo "No ipa directory"
+        ls -la *.ipa || echo "No IPA in root"
+        
+    - name: 📤 Upload IPA Artifact (Xcode Export)
+      uses: actions/upload-artifact@v4
+      if: success()
       with:
-        name: sr3h-ios-app
-        path: sr3h-ios.ipa
+        name: SR3H-VideoConverter-IPA-${{ github.event.inputs.build_type }}
+        path: |
+          build/ios/ipa/*.ipa
+          build/ios/Runner.xcarchive
+        retention-days: 30
+        
+    - name: 📤 Upload Manual IPA (Fallback)
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: SR3H-VideoConverter-IPA-Manual
+        path: sr3h-ios-manual.ipa
+        retention-days: 30
+        
+    - name: 📊 Build Summary
+      if: always()
+      run: |
+        echo "## 🍎 iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **App Name:** محوّل سرعة SR3H" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **Version:** 2.0.6 (206)" >> $GITHUB_STEP_SUMMARY
+        echo "🔧 **Build Type:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **iOS Target:** 12.0+" >> $GITHUB_STEP_SUMMARY
+        echo "🎯 **Devices:** iPhone, iPad" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "build/ios/ipa/*.ipa" ]; then
+          echo "📦 **IPA Size:** $(du -h build/ios/ipa/*.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Status:** IPA Created Successfully" >> $GITHUB_STEP_SUMMARY
+        elif [ -f "sr3h-ios-manual.ipa" ]; then
+          echo "📦 **IPA Size:** $(du -h sr3h-ios-manual.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Status:** Manual IPA Created (Fallback)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status:** Build Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📱 Installation Instructions:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Download the IPA from Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "2. Use AltStore, Sideloadly, or 3uTools" >> $GITHUB_STEP_SUMMARY
+        echo "3. Install with your Apple ID" >> $GITHUB_STEP_SUMMARY
+        echo "4. Trust the developer in Settings" >> $GITHUB_STEP_SUMMARY
