@@ -96,17 +96,37 @@ jobs:
       if: failure()
       run: |
         echo "=== Debugging Build Paths ==="
-        find build -name "*.app" -type d || echo "No .app found"
-        ls -la build/ios/ || echo "No build/ios directory"
+        pwd
+        ls -la . || echo "Current directory listing failed"
+        ls -la build/ || echo "No build directory"
+        find . -name "*.app" -type d 2>/dev/null || echo "No .app found anywhere"
+        find . -name "Runner.app" -type d 2>/dev/null || echo "No Runner.app found"
         
     - name: 🔧 Create Manual IPA (Fallback)
       if: failure()
+      continue-on-error: true
       run: |
-        # Find the .app file
-        APP_PATH=$(find build -name "Runner.app" -type d | head -1)
-        if [ -z "$APP_PATH" ]; then
-          echo "❌ Runner.app not found"
-          exit 1
+        echo "🔍 Searching for Runner.app in all possible locations..."
+        
+        # Search in multiple possible locations
+        APP_PATH=""
+        
+        # Try different possible paths
+        if [ -d "build/ios/Release-iphoneos/Runner.app" ]; then
+          APP_PATH="build/ios/Release-iphoneos/Runner.app"
+        elif [ -d "build/ios/iphoneos/Runner.app" ]; then
+          APP_PATH="build/ios/iphoneos/Runner.app"
+        elif [ -d "ios/build/Release-iphoneos/Runner.app" ]; then
+          APP_PATH="ios/build/Release-iphoneos/Runner.app"
+        else
+          # Last resort: find anywhere
+          APP_PATH=$(find . -name "Runner.app" -type d 2>/dev/null | head -1)
+        fi
+        
+        if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+          echo "❌ Runner.app not found in any location"
+          echo "⚠️ Manual IPA creation skipped"
+          exit 0
         fi
         
         echo "✅ Found Runner.app at: $APP_PATH"
@@ -122,30 +142,68 @@ jobs:
         
     - name: 📦 Create Additional IPA (Always)
       if: always()
+      continue-on-error: true
       run: |
-        # Always try to create an IPA from Flutter build
+        echo "🔍 Attempting to create IPA from any available build..."
+        
+        # Search for Runner.app in multiple locations
+        APP_PATH=""
+        
         if [ -d "build/ios/Release-iphoneos/Runner.app" ]; then
-          echo "✅ Creating IPA from Flutter build..."
+          APP_PATH="build/ios/Release-iphoneos/Runner.app"
+          echo "✅ Found Flutter Release build"
+        elif [ -d "build/ios/iphoneos/Runner.app" ]; then
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          echo "✅ Found iOS build"
+        elif [ -d "ios/build/Release-iphoneos/Runner.app" ]; then
+          APP_PATH="ios/build/Release-iphoneos/Runner.app"
+          echo "✅ Found iOS Release build"
+        else
+          # Search anywhere
+          APP_PATH=$(find . -name "Runner.app" -type d 2>/dev/null | head -1)
+          if [ -n "$APP_PATH" ]; then
+            echo "✅ Found Runner.app at: $APP_PATH"
+          fi
+        fi
+        
+        if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
+          echo "📱 Creating SR3H_Video_Converter_v2.0.8_unsigned.ipa..."
           mkdir -p flutter_ipa/Payload
-          cp -r build/ios/Release-iphoneos/Runner.app flutter_ipa/Payload/
+          cp -r "$APP_PATH" flutter_ipa/Payload/
           cd flutter_ipa
           zip -r ../SR3H_Video_Converter_v2.0.8_unsigned.ipa Payload/
           cd ..
-          echo "✅ Flutter IPA created: SR3H_Video_Converter_v2.0.8_unsigned.ipa"
+          echo "✅ IPA created successfully: SR3H_Video_Converter_v2.0.8_unsigned.ipa"
+          
+          # Verify the IPA was created
+          if [ -f "SR3H_Video_Converter_v2.0.8_unsigned.ipa" ]; then
+            ls -lh SR3H_Video_Converter_v2.0.8_unsigned.ipa
+            echo "🎉 Final IPA is ready for download!"
+          fi
         else
-          echo "⚠️ Flutter build not found, skipping additional IPA"
+          echo "⚠️ No Runner.app found, cannot create additional IPA"
         fi
         
+    - name: 📋 List All IPA Files
+      if: always()
+      run: |
+        echo "=== Searching for all IPA files ==="
+        find . -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found"
+        ls -la *.ipa 2>/dev/null || echo "No IPA files in root directory"
+        ls -la build/ios/ipa/ 2>/dev/null || echo "No IPA files in build/ios/ipa/"
+        
     - name: ⬆️ Upload Professional IPA
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: SR3H-Professional-IPA-v2.0.8
         path: |
-          build/ios/ipa/*.ipa
+          build/ios/ipa/
           sr3h-professional.ipa
           SR3H_Video_Converter_v2.0.8_unsigned.ipa
           *.ipa
         retention-days: 30
+        if-no-files-found: warn
         
     - name: 📋 Build Summary
       if: always()
