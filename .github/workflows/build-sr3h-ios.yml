@@ -26,18 +26,19 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.13.9'
+          flutter-version: '3.22.7'
           channel: 'stable'
 
       - name: Get Flutter Dependencies
         run: |
+          flutter config --no-analytics
           flutter pub get
 
       - name: Create Generated.xcconfig
         run: |
           mkdir -p ios/Flutter
           cat > ios/Flutter/Generated.xcconfig << 'EOF'
-          FLUTTER_ROOT=/Users/runner/hostedtoolcache/flutter/3.13.9-stable/x64
+          FLUTTER_ROOT=/Users/runner/hostedtoolcache/flutter/3.22.7-stable/x64
           FLUTTER_APPLICATION_PATH=/Users/runner/work/sr3h-ios-professional/sr3h-ios-professional
           COCOAPODS_PARALLEL_CODE_SIGN=true
           FLUTTER_TARGET=lib/main.dart
