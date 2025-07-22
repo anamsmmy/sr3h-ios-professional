@@ -18,7 +18,7 @@ dependencies:
   device_info_plus: ^9.0.3
   crypto: ^3.0.3
   shared_preferences: ^2.2.2
-  url_launcher: ^6.1.17
+  url_launcher: ^6.2.5
 
   # fork المجتمع – يجلب ثنائيات FFmpegKit 6.0‑2.LTS
   ffmpeg_kit_flutter_new: ^2.0.0   # سيختار pub أحدث 2.x متاح
