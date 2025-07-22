@@ -74,10 +74,24 @@ jobs:
         rm -rf Flutter/Flutter.framework
         rm -rf Flutter/Flutter.podspec
         rm -rf build/
+        cd ..
+        
+    - name: 🔧 Generate iOS Configuration
+      run: |
+        echo "🔧 Generating iOS configuration files..."
+        flutter pub get
+        flutter precache --ios
+        flutter build ios --config-only --no-codesign
+        echo "📁 Checking generated files..."
+        ls -la ios/Flutter/
         
     - name: 🔧 Pod Install with iOS 12.0
       run: |
         cd ios
+        echo "📁 Current directory contents:"
+        ls -la
+        echo "📁 Flutter directory contents:"
+        ls -la Flutter/
         pod install --repo-update
         
     - name: 📝 Create Export Options
