@@ -31,11 +31,17 @@ jobs:
     - name: 🎯 Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.0'
+        flutter-version: '3.24.5'
         channel: 'stable'
         
     - name: 📦 Install Dependencies
-      run: flutter pub get
+      run: |
+        echo "🔍 Flutter version:"
+        flutter --version
+        echo "📦 Getting dependencies..."
+        flutter pub get
+        echo "🔧 Resolving dependency conflicts..."
+        flutter pub deps
       
     - name: 🔧 Clean iOS Build
       run: |
