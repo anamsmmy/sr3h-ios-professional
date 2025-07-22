@@ -22,13 +22,6 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.0'
 
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
@@ -38,20 +31,14 @@ jobs:
 
     - name: Get Flutter Dependencies
       run: |
-        echo "Flutter version:"
-        flutter --version
-        echo "Getting dependencies..."
         flutter pub get
-        echo "Checking Generated.xcconfig..."
         ls -la ios/Flutter/Generated.xcconfig || echo "Generated.xcconfig not found"
 
     - name: Create Generated.xcconfig if missing
       run: |
         if [ ! -f "ios/Flutter/Generated.xcconfig" ]; then
-          echo "Creating Generated.xcconfig manually..."
           mkdir -p ios/Flutter
           cat > ios/Flutter/Generated.xcconfig << 'EOF'
-// This is a generated file; do not edit or check into version control.
 FLUTTER_ROOT=/Users/runner/hostedtoolcache/flutter/3.13.9-stable/x64
 FLUTTER_APPLICATION_PATH=/Users/runner/work/sr3h-ios-professional/sr3h-ios-professional
 COCOAPODS_PARALLEL_CODE_SIGN=true
@@ -66,32 +53,16 @@ TRACK_WIDGET_CREATION=true
 TREE_SHAKE_ICONS=false
 PACKAGE_CONFIG=.dart_tool/package_config.json
 EOF
-          echo "Generated.xcconfig created successfully"
-        else
-          echo "Generated.xcconfig already exists"
         fi
-        ls -la ios/Flutter/Generated.xcconfig
-
-    - name: Clean iOS Build
-      run: |
-        flutter clean
-        cd ios
-        rm -rf Pods
-        rm -rf .symlinks
-        rm -rf build/
 
     - name: Install CocoaPods
       run: |
         cd ios
-        echo "Installing CocoaPods dependencies..."
         pod install --repo-update
 
     - name: Build iOS Archive
       run: |
-        echo "Building iOS app without code signing..."
         flutter build ios --release --no-codesign
-        
-        echo "Creating iOS Archive..."
         cd ios
         xcodebuild -workspace Runner.xcworkspace \
                    -scheme Runner \
@@ -100,48 +71,16 @@ EOF
                    -archivePath ../build/ios/Runner.xcarchive \
                    archive \
                    CODE_SIGNING_ALLOWED=NO \
-                   CODE_SIGNING_REQUIRED=NO \
-                   CODE_SIGN_IDENTITY="" \
-                   PROVISIONING_PROFILE=""
+                   CODE_SIGNING_REQUIRED=NO
 
     - name: Create Unsigned IPA
       run: |
-        echo "Creating unsigned IPA for sideloading..."
-        
-        # Check if archive exists
-        if [ ! -d "build/ios/Runner.xcarchive" ]; then
-          echo "Archive not found!"
-          ls -la build/ios/
-          exit 1
-        fi
-        
-        echo "Archive found, proceeding..."
-        
-        # Create IPA directory
         mkdir -p build/ios/ipa
-        
-        # Extract app from archive
-        echo "Extracting app from archive..."
-        if [ ! -d "build/ios/Runner.xcarchive/Products/Applications/Runner.app" ]; then
-          echo "Runner.app not found in archive!"
-          ls -la build/ios/Runner.xcarchive/Products/Applications/
-          exit 1
-        fi
-        
         cp -r build/ios/Runner.xcarchive/Products/Applications/Runner.app build/ios/ipa/
-        
-        # Create IPA structure
         cd build/ios/ipa
         mkdir -p Payload
         mv Runner.app Payload/
-        
-        # Create unsigned IPA
-        echo "Creating IPA file..."
         zip -r "SR3H_Video_Converter_v2.0.6_unsigned.ipa" Payload/
-        
-        echo "Unsigned IPA created successfully!"
-        ls -la *.ipa
-        echo "File size: $(du -h *.ipa | cut -f1)"
 
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
@@ -149,24 +88,3 @@ EOF
         name: SR3H Video Converter IPA
         path: build/ios/ipa/*.ipa
         retention-days: 30
-
-    - name: Build Summary
-      run: |
-        echo "## iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**App Name:** SR3H Video Converter" >> $GITHUB_STEP_SUMMARY
-        echo "**Version:** 2.0.6 (206)" >> $GITHUB_STEP_SUMMARY
-        echo "**Build Type:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
-        echo "**iOS Target:** 12.0+" >> $GITHUB_STEP_SUMMARY
-        echo "**Devices:** iPhone, iPad" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "=> **Status:** Build Successful" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## Installation Instructions:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Download the IPA from Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "2. Use **AltStore**, **Sideloadly**, or **3uTools**" >> $GITHUB_STEP_SUMMARY
-        echo "3. Install with your **Apple ID** (free account)" >> $GITHUB_STEP_SUMMARY
-        echo "4. Trust the developer in **Settings > General > VPN & Device Management**" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Note: Free Apple ID signing lasts 7 days, then re-sign needed" >> $GITHUB_STEP_SUMMARY
-
