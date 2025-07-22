@@ -31,13 +31,15 @@ jobs:
     - name: 🎯 Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.5'
+        flutter-version: 'latest'
         channel: 'stable'
         
     - name: 📦 Install Dependencies
       run: |
         echo "🔍 Flutter version:"
         flutter --version
+        echo "🔧 Disable analytics..."
+        flutter config --no-analytics
         echo "📦 Getting dependencies..."
         flutter pub get
         echo "🔧 Resolving dependency conflicts..."
