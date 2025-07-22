@@ -1,12 +1,12 @@
-name: ?? Build iOS IPA - ����� ���� SR3H
+name: 🎯 Build iOS IPA - محوّل سرعة SR3H
 
 on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: '��� ������'
+        description: 'نوع البناء'
         required: true
-        default: 'development'
+        default: 'development'   
         type: choice
         options:
         - development
@@ -15,202 +15,55 @@ on:
 
 jobs:
   build-ios:
-    name: ?? Build iOS App
+    name: 🎯 Build iOS App
     runs-on: macos-latest
     timeout-minutes: 60
-    
+
     steps:
-    - name: ?? Checkout Repository
+    - name: 📥 Checkout Repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-        
-    - name: ?? Check Git Status
-      run: |
-        echo "?? Current directory: $(pwd)"
-        echo "?? Directory contents:"
-        ls -la
-        echo "?? Git status:"
-        git status || echo "? Git not initialized"
-        echo "?? Current branch:"
-        git branch || echo "? No branches found"
-      
-    - name: ?? Setup Xcode
+    - name: 🔧 Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '15.0'
-        
-    - name: ?? Setup Flutter
+
+    - name: 🔧 Setup Flutter
       run: |
         git clone https://github.com/flutter/flutter.git -b stable --depth 1
         echo "$PWD/flutter/bin" >> $GITHUB_PATH
         export PATH="$PWD/flutter/bin:$PATH"
         flutter --version
         flutter doctor
-        
-    - name: ?? Verify Flutter Installation
+
+    - name: 📦 Install Dependencies
       run: |
-        echo "?? Checking Flutter installation..."
-        if ! command -v flutter &> /dev/null; then
-          echo "? Flutter not found, installing manually..."
-          cd $HOME
-          git clone https://github.com/flutter/flutter.git -b stable --depth 1
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          export PATH="$HOME/flutter/bin:$PATH"
-        fi
-        flutter --version
-        flutter doctor -v
-        
-    - name: ?? Install Dependencies
-      run: |
-        echo "?? Flutter version:"
-        flutter --version
-        echo "?? Disable analytics..."
-        flutter config --no-analytics
-        echo "?? Getting dependencies..."
-        flutter pub get || {
-          echo "? pub get failed, trying to resolve conflicts..."
-          flutter pub add supabase_flutter:^1.10.24
-          flutter pub add permission_handler:^11.0.1
-          flutter pub add device_info_plus:^9.0.3
-          flutter pub add file_picker:^6.1.1
-          flutter pub get
-        }
-        echo "?? Resolving dependency conflicts..."
+        flutter pub get
         flutter pub deps
-      
-    - name: ?? Clean iOS Build
+
+    - name: 🧹 Clean iOS Build
       run: |
         flutter clean
         cd ios
-          # Create ExportOptions.plist
-          cat > ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>development</string>
-              <key>compileBitcode</key>
-              <false/>
-              <key>uploadBitcode</key>
-              <false/>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>signingStyle</key>
-              <string>automatic</string>
-          </dict>
-          </plist>
-          EOF
         rm -rf Pods
         rm -rf .symlinks
         rm -rf Flutter/Flutter.framework
         rm -rf Flutter/Flutter.podspec
         rm -rf build/
-        cd ..
-        
-    - name: ?? Generate iOS Configuration
-      run: |
-        echo "?? Generating iOS configuration files..."
-        flutter pub get
-        flutter precache --ios
-        flutter build ios --config-only --no-codesign
-        echo "?? Checking generated files..."
-        ls -la ios/Flutter/
-        
-    - name: ?? Pod Install with iOS 12.0
+
+    - name: 🔧 Setup iOS Pods
       run: |
         cd ios
-          # Create ExportOptions.plist
-          cat > ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>development</string>
-              <key>compileBitcode</key>
-              <false/>
-              <key>uploadBitcode</key>
-              <false/>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>signingStyle</key>
-              <string>automatic</string>
-          </dict>
-          </plist>
-          EOF
-        echo "?? Current directory contents:"
-        ls -la
-        echo "?? Flutter directory contents:"
-        ls -la Flutter/
         pod install --repo-update
-        
-    - name: ?? Create Export Options
+
+    - name: 🏗️ Build iOS Archive
       run: |
-        cat > ios/ExportOptions.plist << EOF
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>method</key>
-            <string>${{ github.event.inputs.build_type }}</string>
-            <key>teamID</key>
-            <string></string>
-            <key>compileBitcode</key>
-            <false/>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <false/>
-            <key>signingStyle</key>
-            <string>automatic</string>
-        </dict>
-        </plist>
-        EOF
+        flutter build ios --release --no-codesign
         
-    - name: ?? Build iOS (No Codesign)
-      run: |
-        echo "?? Building iOS app without code signing..."
-        echo 'Skipping flutter build ios - using Xcode directly'
-        
-        echo "?? Checking build output..."
-        ls -la build/ios/ || echo "No build/ios directory"
-        find build -name "*.app" -type d | head -5
-        
-    - name: ??? Build Archive with Xcode
-      run: |
-        echo "?? Pre-build checks..."
-        pwd
-        ls -la ios/
-        
+        echo "📱 Building iOS Archive..."
         cd ios
-          # Create ExportOptions.plist
-          cat > ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>development</string>
-              <key>compileBitcode</key>
-              <false/>
-              <key>uploadBitcode</key>
-              <false/>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>signingStyle</key>
-              <string>automatic</string>
-          </dict>
-          </plist>
-          EOF
-        echo "??? Building archive with Xcode..."
-        
-        # Set Git config to avoid any Git-related issues
-        git config --global user.email "action@github.com" || true
-        git config --global user.name "GitHub Action" || true
-        
         xcodebuild -workspace Runner.xcworkspace \
                    -scheme Runner \
                    -configuration Release \
@@ -220,171 +73,70 @@ jobs:
                    CODE_SIGNING_ALLOWED=NO \
                    CODE_SIGNING_REQUIRED=NO \
                    CODE_SIGN_IDENTITY="" \
-                   PROVISIONING_PROFILE="" \
-                   DEVELOPMENT_TEAM="" \
-                   -allowProvisioningUpdates
-        
-        echo "?? Checking archive..."
-        ls -la ../build/ios/ || echo "No build/ios directory"
-        
-    - name: ?? Export IPA
+                   PROVISIONING_PROFILE=""
+
+    - name: 🎯 Create Unsigned IPA
       run: |
-        cd ios
-          # Create ExportOptions.plist
-          cat > ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>development</string>
-              <key>compileBitcode</key>
-              <false/>
-              <key>uploadBitcode</key>
-              <false/>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>signingStyle</key>
-              <string>automatic</string>
-          </dict>
-          </plist>
-          EOF
-        xcodebuild -exportArchive -allowProvisioningUpdates \
-                   -archivePath ../build/ios/Runner.xcarchive \
-                   -exportPath ../build/ios/ipa \
-                   -exportOptionsPlist ExportOptions.plist \
-                   -allowProvisioningUpdates
+        echo "📱 Creating unsigned IPA for sideloading..."
         
-    - name: ?? Create Manual IPA (Fallback)
-      if: failure()
-      run: |
-        echo "?? Searching for Runner.app..."
-        find . -name "Runner.app" -type d | head -5
-        
-        # Try different possible locations
-        if [ -d "build/ios/iphoneos/Runner.app" ]; then
-          echo "? Found Runner.app in build/ios/iphoneos/"
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r ../../../sr3h-ios-manual.ipa Payload/
-        elif [ -d "build/ios/Release-iphoneos/Runner.app" ]; then
-          echo "? Found Runner.app in build/ios/Release-iphoneos/"
-          cd build/ios/Release-iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r ../../../sr3h-ios-manual.ipa Payload/
-        elif [ -d "ios/build/Release-iphoneos/Runner.app" ]; then
-          echo "? Found Runner.app in ios/build/Release-iphoneos/"
-          cd ios
-          # Create ExportOptions.plist
-          cat > ExportOptions.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>development</string>
-              <key>compileBitcode</key>
-              <false/>
-              <key>uploadBitcode</key>
-              <false/>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>signingStyle</key>
-              <string>automatic</string>
-          </dict>
-          </plist>
-          EOF/build/Release-iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r ../../../sr3h-ios-manual.ipa Payload/
-        else
-          echo "? Runner.app not found in any expected location"
-          echo "?? Available directories:"
-          find . -name "*.app" -type d | head -10
-          # Create a dummy IPA to prevent complete failure
-          mkdir -p temp_payload
-          echo "SR3H iOS App - Build Failed" > temp_payload/README.txt
-          zip -r sr3h-ios-build-failed.ipa temp_payload/
+        # Check if archive exists
+        if [ ! -d "build/ios/Runner.xcarchive" ]; then
+          echo "❌ Archive not found!"
+          ls -la build/ios/
+          exit 1
         fi
         
-    - name: ?? Validate IPA Files
-      run: |
-        echo "=== Generated Files ==="
-        find build/ios -name "*.ipa" -o -name "*.app" | head -10
-        ls -la build/ios/ipa/ || echo "No ipa directory"
-        ls -la *.ipa || echo "No IPA in root"
+        echo "✅ Archive found, proceeding..."
         
-        echo "?? Checking IPA file sizes..."
-        for ipa in $(find . -name "*.ipa" 2>/dev/null); do
-          size=$(stat -f%z "$ipa" 2>/dev/null || stat -c%s "$ipa" 2>/dev/null || echo "0")
-          echo "?? $ipa: ${size} bytes"
-          
-          if [ "$size" -lt 100000 ]; then
-            echo "? WARNING: IPA file too small ($size bytes) - likely invalid"
-            echo "?? Contents of small IPA:"
-            unzip -l "$ipa" || echo "Cannot list IPA contents"
-          else
-            echo "? IPA file size looks valid ($size bytes)"
-          fi
-        done
+        # Create IPA directory
+        mkdir -p build/ios/ipa
         
-    - name: ?? Upload IPA Artifact (Xcode Export)
-      uses: actions/upload-artifact@v4
-      if: success()
-      with:
-        name: SR3H-VideoConverter-IPA-${{ github.event.inputs.build_type }}
-        path: |
-          build/ios/ipa/*.ipa
-          build/ios/Runner.xcarchive
-        retention-days: 30
-        
-    - name: ?? Upload Manual IPA (Fallback)
-      uses: actions/upload-artifact@v4
-      if: failure()
-      with:
-        name: SR3H-VideoConverter-IPA-Manual
-        path: |
-          sr3h-ios-manual.ipa
-          sr3h-ios-build-failed.ipa
-        retention-days: 30
-        
-    - name: ?? Build Summary
-      if: always()
-      run: |
-        echo "## ?? iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
-        echo "? **App Name:** ����� ���� SR3H" >> $GITHUB_STEP_SUMMARY
-        echo "?? **Version:** 2.0.6 (206)" >> $GITHUB_STEP_SUMMARY
-        echo "?? **Build Type:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
-        echo "?? **iOS Target:** 12.0+" >> $GITHUB_STEP_SUMMARY
-        echo "?? **Devices:** iPhone, iPad" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -f "build/ios/ipa/*.ipa" ]; then
-          echo "?? **IPA Size:** $(du -h build/ios/ipa/*.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          echo "? **Status:** IPA Created Successfully" >> $GITHUB_STEP_SUMMARY
-        elif [ -f "sr3h-ios-manual.ipa" ]; then
-          echo "?? **IPA Size:** $(du -h sr3h-ios-manual.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          echo "?? **Status:** Manual IPA Created (Fallback)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "? **Status:** Build Failed" >> $GITHUB_STEP_SUMMARY
+        # Extract app from archive
+        echo "📦 Extracting app from archive..."
+        if [ ! -d "build/ios/Runner.xcarchive/Products/Applications/Runner.app" ]; then
+          echo "❌ Runner.app not found in archive!"
+          ls -la build/ios/Runner.xcarchive/Products/Applications/
+          exit 1
         fi
         
+        cp -r build/ios/Runner.xcarchive/Products/Applications/Runner.app build/ios/ipa/
+        
+        # Create IPA structure
+        cd build/ios/ipa
+        mkdir -p Payload
+        mv Runner.app Payload/
+        
+        # Create unsigned IPA
+        echo "🔧 Creating IPA file..."
+        zip -r "SR3H_Video_Converter_v2.0.6_unsigned.ipa" Payload/
+        
+        echo "✅ Unsigned IPA created successfully!"
+        ls -la *.ipa
+        echo "📊 File size: $(du -h *.ipa | cut -f1)"
+
+    - name: 📦 Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 📱 SR3H Video Converter IPA
+        path: build/ios/ipa/*.ipa
+        retention-days: 30
+
+    - name: 📋 Build Summary
+      run: |
+        echo "## 🎉 iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ?? Installation Instructions:" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **App Name:** محوّل سرعة SR3H" >> $GITHUB_STEP_SUMMARY
+        echo "🔢 **Version:** 2.0.6 (206)" >> $GITHUB_STEP_SUMMARY
+        echo "🏗️ **Build Type:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **iOS Target:** 12.0+" >> $GITHUB_STEP_SUMMARY
+        echo "📱 **Devices:** iPhone, iPad" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "=> **Status:** Build Successful ✅" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 📱 Installation Instructions:" >> $GITHUB_STEP_SUMMARY
         echo "1. Download the IPA from Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "2. Use AltStore, Sideloadly, or 3uTools" >> $GITHUB_STEP_SUMMARY
-        echo "3. Install with your Apple ID" >> $GITHUB_STEP_SUMMARY
-        echo "4. Trust the developer in Settings" >> $GITHUB_STEP_SUMMARY
-
-
-
-
-
-
-
-
-
-
-
-
+        echo "2. Use **AltStore**, **Sideloadly**, or **3uTools**" >> $GITHUB_STEP_SUMMARY
+        echo "3. Install with your **Apple ID** (free account)" >> $GITHUB_STEP_SUMMARY
+        echo "4. Trust the developer in **Settings > General > VPN & Device Management**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ **Note:** Free Apple ID signing lasts 7 days, then re-sign needed" >> $GITHUB_STEP_SUMMARY
