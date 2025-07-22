@@ -54,7 +54,13 @@ jobs:
         echo "🔧 Disable analytics..."
         flutter config --no-analytics
         echo "📦 Getting dependencies..."
-        flutter pub get
+        flutter pub get || {
+          echo "❌ pub get failed, trying to resolve conflicts..."
+          flutter pub add permission_handler:^11.0.1
+          flutter pub add device_info_plus:^9.0.3
+          flutter pub add file_picker:^6.1.1
+          flutter pub get
+        }
         echo "🔧 Resolving dependency conflicts..."
         flutter pub deps
       
