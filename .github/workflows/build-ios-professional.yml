@@ -1,10 +1,10 @@
-name: ?? Build Professional iOS IPA - ãÍæøá ÓÑÚÉ SR3H
+name: ðŸŽ Build Professional iOS IPA - Ù…Ø­ÙˆÙ‘Ù„ Ø³Ø±Ø¹Ø© SR3H v2.0.8
 
 on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'äæÚ ÇáÈäÇÁ'
+        description: 'Ù†ÙˆØ¹ Ø§Ù„Ø¨Ù†Ø§Ø¡'
         required: true
         default: 'development'
         type: choice
@@ -15,12 +15,12 @@ on:
 
 jobs:
   build-ios:
-    name: ?? Build Professional iOS IPA
+    name: ðŸŽ Build Professional iOS IPA
     runs-on: macos-latest
     timeout-minutes: 90
     
     steps:
-    - name: ?? Checkout Repository
+    - name: ðŸ“¥ Checkout Repository
       uses: actions/checkout@v4
       
     - name: ?? Setup Xcode
@@ -31,7 +31,7 @@ jobs:
     - name: ?? Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.0'
+        flutter-version: 'stable'
         channel: 'stable'
         
     - name: ?? Install Dependencies
@@ -113,7 +113,7 @@ jobs:
       if: always()
       run: |
         echo "## ?? Professional iOS Build Complete!" >> \
-        echo "? **App:** ãÍæøá ÓÑÚÉ SR3H" >> \
-        echo "?? **Version:** 2.0.6" >> \
+        echo "? **App:** ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ SR3H" >> \
+        echo "ðŸ“± **Version:** 2.0.8" >> \
         echo "?? **Type:** Professional IPA" >> \
         echo "?? **iOS:** 12.0+" >> \

@@ -1,7 +1,7 @@
-name: sr3h_video_converter
+﻿name: sr3h_video_converter
 description: محوّل سرعة - تحويل الفيديو إلى 60 إطار
 publish_to: 'none'
-version: 2.0.6+206
+version: 2.0.8+208
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -19,6 +19,7 @@ dependencies:
   crypto: ^3.0.3
   shared_preferences: ^2.2.2
   url_launcher: ^6.2.5
+  gallery_saver: ^2.3.2
 
   # fork المجتمع – يجلب ثنائيات FFmpegKit 6.0‑2.LTS
   ffmpeg_kit_flutter_new: ^2.0.0   # سيختار pub أحدث 2.x متاح
