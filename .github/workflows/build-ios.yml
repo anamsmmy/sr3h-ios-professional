@@ -22,6 +22,19 @@ jobs:
     steps:
     - name: 📥 Checkout Repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: true
+        
+    - name: 🔍 Check Git Status
+      run: |
+        echo "🔍 Current directory: $(pwd)"
+        echo "📁 Directory contents:"
+        ls -la
+        echo "🔧 Git status:"
+        git status || echo "❌ Git not initialized"
+        echo "🌿 Current branch:"
+        git branch || echo "❌ No branches found"
       
     - name: 🍎 Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -128,8 +141,17 @@ jobs:
         
     - name: 🏗️ Build Archive with Xcode
       run: |
+        echo "🔍 Pre-build checks..."
+        pwd
+        ls -la ios/
+        
         cd ios
         echo "🏗️ Building archive with Xcode..."
+        
+        # Set Git config to avoid any Git-related issues
+        git config --global user.email "action@github.com" || true
+        git config --global user.name "GitHub Action" || true
+        
         xcodebuild -workspace Runner.xcworkspace \
                    -scheme Runner \
                    -configuration Release \
@@ -190,12 +212,26 @@ jobs:
           zip -r sr3h-ios-build-failed.ipa temp_payload/
         fi
         
-    - name: 📋 List Generated Files
+    - name: 📋 Validate IPA Files
       run: |
         echo "=== Generated Files ==="
         find build/ios -name "*.ipa" -o -name "*.app" | head -10
         ls -la build/ios/ipa/ || echo "No ipa directory"
         ls -la *.ipa || echo "No IPA in root"
+        
+        echo "🔍 Checking IPA file sizes..."
+        for ipa in $(find . -name "*.ipa" 2>/dev/null); do
+          size=$(stat -f%z "$ipa" 2>/dev/null || stat -c%s "$ipa" 2>/dev/null || echo "0")
+          echo "📱 $ipa: ${size} bytes"
+          
+          if [ "$size" -lt 100000 ]; then
+            echo "❌ WARNING: IPA file too small ($size bytes) - likely invalid"
+            echo "🔍 Contents of small IPA:"
+            unzip -l "$ipa" || echo "Cannot list IPA contents"
+          else
+            echo "✅ IPA file size looks valid ($size bytes)"
+          fi
+        done
         
     - name: 📤 Upload IPA Artifact (Xcode Export)
       uses: actions/upload-artifact@v4
