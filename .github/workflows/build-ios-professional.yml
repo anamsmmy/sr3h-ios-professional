@@ -92,21 +92,59 @@ jobs:
           -exportPath ../build/ios/ipa \
           -exportOptionsPlist ExportOptions.plist
         
+    - name: 🔍 Debug Build Paths
+      if: failure()
+      run: |
+        echo "=== Debugging Build Paths ==="
+        find build -name "*.app" -type d || echo "No .app found"
+        ls -la build/ios/ || echo "No build/ios directory"
+        
     - name: 🔧 Create Manual IPA (Fallback)
       if: failure()
       run: |
-        cd build/ios/iphoneos
-        mkdir -p Payload
-        cp -r Runner.app Payload/
-        zip -r ../../../sr3h-professional.ipa Payload/
+        # Find the .app file
+        APP_PATH=$(find build -name "Runner.app" -type d | head -1)
+        if [ -z "$APP_PATH" ]; then
+          echo "❌ Runner.app not found"
+          exit 1
+        fi
+        
+        echo "✅ Found Runner.app at: $APP_PATH"
+        
+        # Create IPA manually
+        mkdir -p manual_ipa/Payload
+        cp -r "$APP_PATH" manual_ipa/Payload/
+        cd manual_ipa
+        zip -r ../sr3h-professional.ipa Payload/
+        cd ..
+        
+        echo "✅ Manual IPA created successfully"
+        
+    - name: 📦 Create Additional IPA (Always)
+      if: always()
+      run: |
+        # Always try to create an IPA from Flutter build
+        if [ -d "build/ios/Release-iphoneos/Runner.app" ]; then
+          echo "✅ Creating IPA from Flutter build..."
+          mkdir -p flutter_ipa/Payload
+          cp -r build/ios/Release-iphoneos/Runner.app flutter_ipa/Payload/
+          cd flutter_ipa
+          zip -r ../SR3H_Video_Converter_v2.0.8_unsigned.ipa Payload/
+          cd ..
+          echo "✅ Flutter IPA created: SR3H_Video_Converter_v2.0.8_unsigned.ipa"
+        else
+          echo "⚠️ Flutter build not found, skipping additional IPA"
+        fi
         
     - name: ⬆️ Upload Professional IPA
       uses: actions/upload-artifact@v4
       with:
-        name: SR3H-Professional-IPA
+        name: SR3H-Professional-IPA-v2.0.8
         path: |
           build/ios/ipa/*.ipa
           sr3h-professional.ipa
+          SR3H_Video_Converter_v2.0.8_unsigned.ipa
+          *.ipa
         retention-days: 30
         
     - name: 📋 Build Summary
