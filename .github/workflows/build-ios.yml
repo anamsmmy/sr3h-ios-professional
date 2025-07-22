@@ -1,10 +1,10 @@
-﻿name: 🍎 Build iOS IPA - محوّل سرعة SR3H
+name: ?? Build iOS IPA - ����� ���� SR3H
 
 on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'نوع البناء'
+        description: '��� ������'
         required: true
         default: 'development'
         type: choice
@@ -15,43 +15,43 @@ on:
 
 jobs:
   build-ios:
-    name: 🍎 Build iOS App
+    name: ?? Build iOS App
     runs-on: macos-latest
     timeout-minutes: 60
     
     steps:
-    - name: 📥 Checkout Repository
+    - name: ?? Checkout Repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        submodules: true
+
         
-    - name: 🔍 Check Git Status
+    - name: ?? Check Git Status
       run: |
-        echo "🔍 Current directory: $(pwd)"
-        echo "📁 Directory contents:"
+        echo "?? Current directory: $(pwd)"
+        echo "?? Directory contents:"
         ls -la
-        echo "🔧 Git status:"
-        git status || echo "❌ Git not initialized"
-        echo "🌿 Current branch:"
-        git branch || echo "❌ No branches found"
+        echo "?? Git status:"
+        git status || echo "? Git not initialized"
+        echo "?? Current branch:"
+        git branch || echo "? No branches found"
       
-    - name: 🍎 Setup Xcode
+    - name: ?? Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: latest-stable
         
-    - name: 🎯 Setup Flutter
+    - name: ?? Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.13.9'
         channel: 'stable'
         
-    - name: 🔧 Verify Flutter Installation
+    - name: ?? Verify Flutter Installation
       run: |
-        echo "🔍 Checking Flutter installation..."
+        echo "?? Checking Flutter installation..."
         if ! command -v flutter &> /dev/null; then
-          echo "❌ Flutter not found, installing manually..."
+          echo "? Flutter not found, installing manually..."
           cd $HOME
           git clone https://github.com/flutter/flutter.git -b stable --depth 1
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
@@ -60,25 +60,25 @@ jobs:
         flutter --version
         flutter doctor -v
         
-    - name: 📦 Install Dependencies
+    - name: ?? Install Dependencies
       run: |
-        echo "🔍 Flutter version:"
+        echo "?? Flutter version:"
         flutter --version
-        echo "🔧 Disable analytics..."
+        echo "?? Disable analytics..."
         flutter config --no-analytics
-        echo "📦 Getting dependencies..."
+        echo "?? Getting dependencies..."
         flutter pub get || {
-          echo "❌ pub get failed, trying to resolve conflicts..."
+          echo "? pub get failed, trying to resolve conflicts..."
           flutter pub add supabase_flutter:^1.10.24
           flutter pub add permission_handler:^11.0.1
           flutter pub add device_info_plus:^9.0.3
           flutter pub add file_picker:^6.1.1
           flutter pub get
         }
-        echo "🔧 Resolving dependency conflicts..."
+        echo "?? Resolving dependency conflicts..."
         flutter pub deps
       
-    - name: 🔧 Clean iOS Build
+    - name: ?? Clean iOS Build
       run: |
         flutter clean
         cd ios
@@ -89,25 +89,25 @@ jobs:
         rm -rf build/
         cd ..
         
-    - name: 🔧 Generate iOS Configuration
+    - name: ?? Generate iOS Configuration
       run: |
-        echo "🔧 Generating iOS configuration files..."
+        echo "?? Generating iOS configuration files..."
         flutter pub get
         flutter precache --ios
         flutter build ios --config-only --no-codesign
-        echo "📁 Checking generated files..."
+        echo "?? Checking generated files..."
         ls -la ios/Flutter/
         
-    - name: 🔧 Pod Install with iOS 12.0
+    - name: ?? Pod Install with iOS 12.0
       run: |
         cd ios
-        echo "📁 Current directory contents:"
+        echo "?? Current directory contents:"
         ls -la
-        echo "📁 Flutter directory contents:"
+        echo "?? Flutter directory contents:"
         ls -la Flutter/
         pod install --repo-update
         
-    - name: 📝 Create Export Options
+    - name: ?? Create Export Options
       run: |
         cat > ios/ExportOptions.plist << EOF
         <?xml version="1.0" encoding="UTF-8"?>
@@ -130,23 +130,23 @@ jobs:
         </plist>
         EOF
         
-    - name: 📱 Build iOS (No Codesign)
+    - name: ?? Build iOS (No Codesign)
       run: |
-        echo "🔧 Building iOS app without code signing..."
+        echo "?? Building iOS app without code signing..."
         flutter build ios --release --no-codesign --verbose
         
-        echo "📁 Checking build output..."
+        echo "?? Checking build output..."
         ls -la build/ios/ || echo "No build/ios directory"
         find build -name "*.app" -type d | head -5
         
-    - name: 🏗️ Build Archive with Xcode
+    - name: ??? Build Archive with Xcode
       run: |
-        echo "🔍 Pre-build checks..."
+        echo "?? Pre-build checks..."
         pwd
         ls -la ios/
         
         cd ios
-        echo "🏗️ Building archive with Xcode..."
+        echo "??? Building archive with Xcode..."
         
         # Set Git config to avoid any Git-related issues
         git config --global user.email "action@github.com" || true
@@ -165,10 +165,10 @@ jobs:
                    DEVELOPMENT_TEAM="" \
                    -allowProvisioningUpdates
         
-        echo "📁 Checking archive..."
+        echo "?? Checking archive..."
         ls -la ../build/ios/ || echo "No build/ios directory"
         
-    - name: 📦 Export IPA
+    - name: ?? Export IPA
       run: |
         cd ios
         xcodebuild -exportArchive \
@@ -177,34 +177,34 @@ jobs:
                    -exportOptionsPlist ExportOptions.plist \
                    -allowProvisioningUpdates
         
-    - name: 📦 Create Manual IPA (Fallback)
+    - name: ?? Create Manual IPA (Fallback)
       if: failure()
       run: |
-        echo "🔍 Searching for Runner.app..."
+        echo "?? Searching for Runner.app..."
         find . -name "Runner.app" -type d | head -5
         
         # Try different possible locations
         if [ -d "build/ios/iphoneos/Runner.app" ]; then
-          echo "✅ Found Runner.app in build/ios/iphoneos/"
+          echo "? Found Runner.app in build/ios/iphoneos/"
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r ../../../sr3h-ios-manual.ipa Payload/
         elif [ -d "build/ios/Release-iphoneos/Runner.app" ]; then
-          echo "✅ Found Runner.app in build/ios/Release-iphoneos/"
+          echo "? Found Runner.app in build/ios/Release-iphoneos/"
           cd build/ios/Release-iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r ../../../sr3h-ios-manual.ipa Payload/
         elif [ -d "ios/build/Release-iphoneos/Runner.app" ]; then
-          echo "✅ Found Runner.app in ios/build/Release-iphoneos/"
+          echo "? Found Runner.app in ios/build/Release-iphoneos/"
           cd ios/build/Release-iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r ../../../sr3h-ios-manual.ipa Payload/
         else
-          echo "❌ Runner.app not found in any expected location"
-          echo "📁 Available directories:"
+          echo "? Runner.app not found in any expected location"
+          echo "?? Available directories:"
           find . -name "*.app" -type d | head -10
           # Create a dummy IPA to prevent complete failure
           mkdir -p temp_payload
@@ -212,28 +212,28 @@ jobs:
           zip -r sr3h-ios-build-failed.ipa temp_payload/
         fi
         
-    - name: 📋 Validate IPA Files
+    - name: ?? Validate IPA Files
       run: |
         echo "=== Generated Files ==="
         find build/ios -name "*.ipa" -o -name "*.app" | head -10
         ls -la build/ios/ipa/ || echo "No ipa directory"
         ls -la *.ipa || echo "No IPA in root"
         
-        echo "🔍 Checking IPA file sizes..."
+        echo "?? Checking IPA file sizes..."
         for ipa in $(find . -name "*.ipa" 2>/dev/null); do
           size=$(stat -f%z "$ipa" 2>/dev/null || stat -c%s "$ipa" 2>/dev/null || echo "0")
-          echo "📱 $ipa: ${size} bytes"
+          echo "?? $ipa: ${size} bytes"
           
           if [ "$size" -lt 100000 ]; then
-            echo "❌ WARNING: IPA file too small ($size bytes) - likely invalid"
-            echo "🔍 Contents of small IPA:"
+            echo "? WARNING: IPA file too small ($size bytes) - likely invalid"
+            echo "?? Contents of small IPA:"
             unzip -l "$ipa" || echo "Cannot list IPA contents"
           else
-            echo "✅ IPA file size looks valid ($size bytes)"
+            echo "? IPA file size looks valid ($size bytes)"
           fi
         done
         
-    - name: 📤 Upload IPA Artifact (Xcode Export)
+    - name: ?? Upload IPA Artifact (Xcode Export)
       uses: actions/upload-artifact@v4
       if: success()
       with:
@@ -243,7 +243,7 @@ jobs:
           build/ios/Runner.xcarchive
         retention-days: 30
         
-    - name: 📤 Upload Manual IPA (Fallback)
+    - name: ?? Upload Manual IPA (Fallback)
       uses: actions/upload-artifact@v4
       if: failure()
       with:
@@ -253,28 +253,28 @@ jobs:
           sr3h-ios-build-failed.ipa
         retention-days: 30
         
-    - name: 📊 Build Summary
+    - name: ?? Build Summary
       if: always()
       run: |
-        echo "## 🍎 iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **App Name:** محوّل سرعة SR3H" >> $GITHUB_STEP_SUMMARY
-        echo "📱 **Version:** 2.0.6 (206)" >> $GITHUB_STEP_SUMMARY
-        echo "🔧 **Build Type:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
-        echo "📱 **iOS Target:** 12.0+" >> $GITHUB_STEP_SUMMARY
-        echo "🎯 **Devices:** iPhone, iPad" >> $GITHUB_STEP_SUMMARY
+        echo "## ?? iOS Build Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "? **App Name:** ����� ���� SR3H" >> $GITHUB_STEP_SUMMARY
+        echo "?? **Version:** 2.0.6 (206)" >> $GITHUB_STEP_SUMMARY
+        echo "?? **Build Type:** ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "?? **iOS Target:** 12.0+" >> $GITHUB_STEP_SUMMARY
+        echo "?? **Devices:** iPhone, iPad" >> $GITHUB_STEP_SUMMARY
         
         if [ -f "build/ios/ipa/*.ipa" ]; then
-          echo "📦 **IPA Size:** $(du -h build/ios/ipa/*.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Status:** IPA Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "?? **IPA Size:** $(du -h build/ios/ipa/*.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "? **Status:** IPA Created Successfully" >> $GITHUB_STEP_SUMMARY
         elif [ -f "sr3h-ios-manual.ipa" ]; then
-          echo "📦 **IPA Size:** $(du -h sr3h-ios-manual.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ **Status:** Manual IPA Created (Fallback)" >> $GITHUB_STEP_SUMMARY
+          echo "?? **IPA Size:** $(du -h sr3h-ios-manual.ipa | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "?? **Status:** Manual IPA Created (Fallback)" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ **Status:** Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo "? **Status:** Build Failed" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📱 Installation Instructions:" >> $GITHUB_STEP_SUMMARY
+        echo "### ?? Installation Instructions:" >> $GITHUB_STEP_SUMMARY
         echo "1. Download the IPA from Artifacts" >> $GITHUB_STEP_SUMMARY
         echo "2. Use AltStore, Sideloadly, or 3uTools" >> $GITHUB_STEP_SUMMARY
         echo "3. Install with your Apple ID" >> $GITHUB_STEP_SUMMARY
