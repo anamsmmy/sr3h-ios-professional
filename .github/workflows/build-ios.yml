@@ -133,7 +133,7 @@ jobs:
     - name: ?? Build iOS (No Codesign)
       run: |
         echo "?? Building iOS app without code signing..."
-        flutter build ios --release --no-codesign --verbose
+        echo 'Skipping flutter build ios - using Xcode directly'
         
         echo "?? Checking build output..."
         ls -la build/ios/ || echo "No build/ios directory"
