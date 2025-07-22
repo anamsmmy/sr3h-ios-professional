@@ -31,17 +31,46 @@ jobs:
         xcode-version: '15.0'
 
     - name: 🔧 Setup Flutter
-      run: |
-        git clone https://github.com/flutter/flutter.git -b stable --depth 1
-        echo "$PWD/flutter/bin" >> $GITHUB_PATH
-        export PATH="$PWD/flutter/bin:$PATH"
-        flutter --version
-        flutter doctor
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.13.9'
+        channel: 'stable'
 
-    - name: 📦 Install Dependencies
+    - name: 📦 Get Flutter Dependencies
       run: |
+        echo "🔧 Flutter version:"
+        flutter --version
+        echo "📦 Getting dependencies..."
         flutter pub get
-        flutter pub deps
+        echo "🔍 Checking Generated.xcconfig..."
+        ls -la ios/Flutter/Generated.xcconfig || echo "⚠️ Generated.xcconfig not found"
+
+    - name: 🛠️ Create Generated.xcconfig if missing
+      run: |
+        if [ ! -f "ios/Flutter/Generated.xcconfig" ]; then
+          echo "⚠️ Creating Generated.xcconfig manually..."
+          mkdir -p ios/Flutter
+          cat > ios/Flutter/Generated.xcconfig << 'EOF'
+// This is a generated file; do not edit or check into version control.
+FLUTTER_ROOT=/Users/runner/hostedtoolcache/flutter/3.13.9-stable/x64
+FLUTTER_APPLICATION_PATH=/Users/runner/work/sr3h-ios-professional/sr3h-ios-professional
+COCOAPODS_PARALLEL_CODE_SIGN=true
+FLUTTER_TARGET=lib/main.dart
+FLUTTER_BUILD_DIR=build
+FLUTTER_BUILD_NAME=2.0.6
+FLUTTER_BUILD_NUMBER=206
+EXCLUDED_ARCHS[sdk=iphonesimulator*]=i386
+EXCLUDED_ARCHS[sdk=iphoneos*]=armv7
+DART_OBFUSCATION=false
+TRACK_WIDGET_CREATION=true
+TREE_SHAKE_ICONS=false
+PACKAGE_CONFIG=.dart_tool/package_config.json
+EOF
+          echo "✅ Generated.xcconfig created successfully"
+        else
+          echo "✅ Generated.xcconfig already exists"
+        fi
+        ls -la ios/Flutter/Generated.xcconfig
 
     - name: 🧹 Clean iOS Build
       run: |
@@ -49,20 +78,20 @@ jobs:
         cd ios
         rm -rf Pods
         rm -rf .symlinks
-        rm -rf Flutter/Flutter.framework
-        rm -rf Flutter/Flutter.podspec
         rm -rf build/
 
-    - name: 🔧 Setup iOS Pods
+    - name: 🔧 Install CocoaPods
       run: |
         cd ios
+        echo "📦 Installing CocoaPods dependencies..."
         pod install --repo-update
 
     - name: 🏗️ Build iOS Archive
       run: |
+        echo "🏗️ Building iOS app without code signing..."
         flutter build ios --release --no-codesign
         
-        echo "📱 Building iOS Archive..."
+        echo "📱 Creating iOS Archive..."
         cd ios
         xcodebuild -workspace Runner.xcworkspace \
                    -scheme Runner \
@@ -140,4 +169,3 @@ jobs:
         echo "4. Trust the developer in **Settings > General > VPN & Device Management**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "⚠️ **Note:** Free Apple ID signing lasts 7 days, then re-sign needed" >> $GITHUB_STEP_SUMMARY
-
