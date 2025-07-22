@@ -140,3 +140,4 @@ jobs:
         echo "4. Trust the developer in **Settings > General > VPN & Device Management**" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "⚠️ **Note:** Free Apple ID signing lasts 7 days, then re-sign needed" >> $GITHUB_STEP_SUMMARY
+
