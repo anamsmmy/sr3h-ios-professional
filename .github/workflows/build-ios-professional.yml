@@ -1,0 +1,119 @@
+name: ?? Build Professional iOS IPA - ãÍæøá ÓÑÚÉ SR3H
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'äæÚ ÇáÈäÇÁ'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - ad-hoc
+        - app-store
+
+jobs:
+  build-ios:
+    name: ?? Build Professional iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 90
+    
+    steps:
+    - name: ?? Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: ?? Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: ?? Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        
+    - name: ?? Install Dependencies
+      run: flutter pub get
+      
+    - name: ?? Clean Build
+      run: |
+        flutter clean
+        cd ios
+        rm -rf Pods
+        rm -rf .symlinks
+        rm -rf Flutter/Flutter.framework
+        rm -rf Flutter/Flutter.podspec
+        
+    - name: ?? Pod Install
+      run: |
+        cd ios
+        pod install --repo-update
+        
+    - name: ?? Create Export Options
+      run: |
+        cat > ios/ExportOptions.plist << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>signingStyle</key>
+            <string>automatic</string>
+        </dict>
+        </plist>
+        EOF
+        
+    - name: ??? Build Flutter iOS
+      run: |
+        flutter build ios --release --no-codesign --verbose
+        
+    - name: ?? Create Xcode Archive
+      run: |
+        cd ios
+        xcodebuild archive \
+          -workspace Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Release \
+          -destination generic/platform=iOS \
+          -archivePath ../build/ios/Runner.xcarchive \
+          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGNING_REQUIRED=NO
+        
+    - name: ?? Export Professional IPA
+      run: |
+        cd ios
+        xcodebuild -exportArchive \
+          -archivePath ../build/ios/Runner.xcarchive \
+          -exportPath ../build/ios/ipa \
+          -exportOptionsPlist ExportOptions.plist
+        
+    - name: ?? Create Manual IPA (Fallback)
+      if: failure()
+      run: |
+        cd build/ios/iphoneos
+        mkdir -p Payload
+        cp -r Runner.app Payload/
+        zip -r ../../../sr3h-professional.ipa Payload/
+        
+    - name: ?? Upload Professional IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: SR3H-Professional-IPA
+        path: |
+          build/ios/ipa/*.ipa
+          sr3h-professional.ipa
+        retention-days: 30
+        
+    - name: ?? Build Summary
+      if: always()
+      run: |
+        echo "## ?? Professional iOS Build Complete!" >> \
+        echo "? **App:** ãÍæøá ÓÑÚÉ SR3H" >> \
+        echo "?? **Version:** 2.0.6" >> \
+        echo "?? **Type:** Professional IPA" >> \
+        echo "?? **iOS:** 12.0+" >> \

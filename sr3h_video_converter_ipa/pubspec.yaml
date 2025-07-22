@@ -1,0 +1,44 @@
+name: sr3h_video_converter
+description: محوّل سرعة - تحويل الفيديو إلى 60 إطار
+publish_to: 'none'
+version: 2.0.1+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  supabase_flutter: ^2.5.6
+  file_picker: ^8.0.0+1
+  path_provider: ^2.1.1
+  permission_handler: ^11.3.1
+  device_info_plus: ^10.1.0
+  crypto: ^3.0.3
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.4
+
+  # fork المجتمع – يجلب ثنائيات FFmpegKit 6.0‑2.LTS
+  ffmpeg_kit_flutter_new: ^2.0.0   # سيختار pub أحدث 2.x متاح
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  fonts:
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+        - asset: assets/fonts/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700

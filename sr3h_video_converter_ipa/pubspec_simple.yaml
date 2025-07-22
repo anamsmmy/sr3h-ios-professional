@@ -1,0 +1,51 @@
+name: sr3h_video_converter
+description: منصة سرعة - تحويل الفيديو إلى 60 إطار
+publish_to: 'none'
+version: 2.0.1+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI Components
+  cupertino_icons: ^1.0.2
+  
+  # State management
+  provider: ^6.1.2
+  
+  # Supabase for authentication
+  supabase_flutter: ^2.5.6
+  
+  # File operations
+  file_picker: ^8.0.0+1
+  path_provider: ^2.1.3
+  
+  # Permissions
+  permission_handler: ^11.3.1
+  
+  # Utils
+  url_launcher: ^6.2.6
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
