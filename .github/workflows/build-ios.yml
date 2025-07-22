@@ -31,8 +31,21 @@ jobs:
     - name: 🎯 Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: 'latest'
+        flutter-version: '3.13.9'
         channel: 'stable'
+        
+    - name: 🔧 Verify Flutter Installation
+      run: |
+        echo "🔍 Checking Flutter installation..."
+        if ! command -v flutter &> /dev/null; then
+          echo "❌ Flutter not found, installing manually..."
+          cd $HOME
+          git clone https://github.com/flutter/flutter.git -b stable --depth 1
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          export PATH="$HOME/flutter/bin:$PATH"
+        fi
+        flutter --version
+        flutter doctor -v
         
     - name: 📦 Install Dependencies
       run: |
