@@ -1,4 +1,4 @@
-name: Build iOS IPA 2025
+﻿name: Build iOS IPA - SR3H Video Converter
 
 on:
   workflow_dispatch:
@@ -32,13 +32,11 @@ jobs:
     - name: Get Flutter Dependencies
       run: |
         flutter pub get
-        ls -la ios/Flutter/Generated.xcconfig || echo "Generated.xcconfig not found"
 
-    - name: Create Generated.xcconfig if missing
+    - name: Create Generated.xcconfig
       run: |
-        if [ ! -f "ios/Flutter/Generated.xcconfig" ]; then
-          mkdir -p ios/Flutter
-          cat > ios/Flutter/Generated.xcconfig << 'EOF'
+        mkdir -p ios/Flutter
+        cat > ios/Flutter/Generated.xcconfig << 'EOF'
 FLUTTER_ROOT=/Users/runner/hostedtoolcache/flutter/3.13.9-stable/x64
 FLUTTER_APPLICATION_PATH=/Users/runner/work/sr3h-ios-professional/sr3h-ios-professional
 COCOAPODS_PARALLEL_CODE_SIGN=true
@@ -53,7 +51,6 @@ TRACK_WIDGET_CREATION=true
 TREE_SHAKE_ICONS=false
 PACKAGE_CONFIG=.dart_tool/package_config.json
 EOF
-        fi
 
     - name: Install CocoaPods
       run: |
@@ -64,14 +61,7 @@ EOF
       run: |
         flutter build ios --release --no-codesign
         cd ios
-        xcodebuild -workspace Runner.xcworkspace \
-                   -scheme Runner \
-                   -configuration Release \
-                   -destination generic/platform=iOS \
-                   -archivePath ../build/ios/Runner.xcarchive \
-                   archive \
-                   CODE_SIGNING_ALLOWED=NO \
-                   CODE_SIGNING_REQUIRED=NO
+        xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath ../build/ios/Runner.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
     - name: Create Unsigned IPA
       run: |
