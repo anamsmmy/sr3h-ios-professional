@@ -1,0 +1,80 @@
+﻿name: Build SR3H iOS App
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+
+jobs:
+  build-ios:
+    name: Build iOS App
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.13.9'
+          channel: 'stable'
+
+      - name: Get Flutter Dependencies
+        run: |
+          flutter pub get
+
+      - name: Create Generated.xcconfig
+        run: |
+          mkdir -p ios/Flutter
+          cat > ios/Flutter/Generated.xcconfig << 'EOF'
+          FLUTTER_ROOT=/Users/runner/hostedtoolcache/flutter/3.13.9-stable/x64
+          FLUTTER_APPLICATION_PATH=/Users/runner/work/sr3h-ios-professional/sr3h-ios-professional
+          COCOAPODS_PARALLEL_CODE_SIGN=true
+          FLUTTER_TARGET=lib/main.dart
+          FLUTTER_BUILD_DIR=build
+          FLUTTER_BUILD_NAME=2.0.6
+          FLUTTER_BUILD_NUMBER=206
+          EXCLUDED_ARCHS[sdk=iphonesimulator*]=i386
+          EXCLUDED_ARCHS[sdk=iphoneos*]=armv7
+          DART_OBFUSCATION=false
+          TRACK_WIDGET_CREATION=true
+          TREE_SHAKE_ICONS=false
+          PACKAGE_CONFIG=.dart_tool/package_config.json
+          EOF
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build iOS Archive
+        run: |
+          flutter build ios --release --no-codesign
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath ../build/ios/Runner.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Create Unsigned IPA
+        run: |
+          mkdir -p build/ios/ipa
+          cp -r build/ios/Runner.xcarchive/Products/Applications/Runner.app build/ios/ipa/
+          cd build/ios/ipa
+          mkdir -p Payload
+          mv Runner.app Payload/
+          zip -r "SR3H_Video_Converter_v2.0.6_unsigned.ipa" Payload/
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SR3H Video Converter IPA
+          path: build/ios/ipa/*.ipa
+          retention-days: 30
