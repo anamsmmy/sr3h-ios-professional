@@ -8,14 +8,13 @@ import 'package:ffmpeg_kit_flutter_new/log.dart';
 import 'package:ffmpeg_kit_flutter_new/statistics.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:crypto/crypto.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:flutter_keychain/flutter_keychain.dart';
 import 'dart:io';
-import 'dart:convert';
+
 import 'dart:math';
 
 void main() async {
