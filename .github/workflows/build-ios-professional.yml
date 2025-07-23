@@ -115,11 +115,15 @@ jobs:
         <plist version="1.0">
         <dict>
             <key>method</key>
-            <string>development</string>
+            <string>debugging</string>
             <key>compileBitcode</key>
             <false/>
             <key>signingStyle</key>
             <string>automatic</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <false/>
         </dict>
         </plist>
         EOF
@@ -138,15 +142,52 @@ jobs:
           -destination generic/platform=iOS \
           -archivePath ../build/ios/Runner.xcarchive \
           CODE_SIGNING_ALLOWED=NO \
-          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGN_IDENTITY="" \
+          PROVISIONING_PROFILE="" \
+          DEVELOPMENT_TEAM="" \
+          -allowProvisioningUpdates
+        
+    - name: 🔍 Verify Archive
+      run: |
+        if [ -d "build/ios/Runner.xcarchive" ]; then
+          echo "✅ Archive created successfully"
+          ls -la build/ios/Runner.xcarchive/
+          ls -la build/ios/Runner.xcarchive/Products/Applications/ || echo "No Applications directory"
+        else
+          echo "❌ Archive not found"
+          ls -la build/ios/ || echo "No build/ios directory"
+          exit 1
+        fi
         
     - name: 📱 Export Professional IPA
+      continue-on-error: true
       run: |
         cd ios
+        echo "🔍 Attempting to export IPA..."
         xcodebuild -exportArchive \
           -archivePath ../build/ios/Runner.xcarchive \
           -exportPath ../build/ios/ipa \
-          -exportOptionsPlist ExportOptions.plist
+          -exportOptionsPlist ExportOptions.plist \
+          -allowProvisioningUpdates || echo "Export failed, will try manual method"
+        
+    - name: 🔧 Create IPA from Archive (Alternative)
+      if: always()
+      continue-on-error: true
+      run: |
+        echo "🔍 Attempting to create IPA directly from archive..."
+        
+        if [ -d "build/ios/Runner.xcarchive/Products/Applications/Runner.app" ]; then
+          echo "✅ Found Runner.app in archive"
+          mkdir -p archive_ipa/Payload
+          cp -r build/ios/Runner.xcarchive/Products/Applications/Runner.app archive_ipa/Payload/
+          cd archive_ipa
+          zip -r ../SR3H_Archive_v2.0.8.ipa Payload/
+          cd ..
+          echo "✅ Archive IPA created: SR3H_Archive_v2.0.8.ipa"
+        else
+          echo "⚠️ Runner.app not found in archive"
+        fi
         
     - name: 🔍 Debug Build Paths
       if: failure()
@@ -257,6 +298,7 @@ jobs:
           build/ios/ipa/
           sr3h-professional.ipa
           SR3H_Video_Converter_v2.0.8_unsigned.ipa
+          SR3H_Archive_v2.0.8.ipa
           *.ipa
         retention-days: 30
         if-no-files-found: warn
