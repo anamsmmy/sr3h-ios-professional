@@ -31,8 +31,14 @@ jobs:
     - name: 🐦 Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: 'stable'
         channel: 'stable'
+        architecture: x64
+        
+    - name: ✅ Verify Flutter Installation
+      run: |
+        flutter --version
+        flutter doctor -v
+        which flutter
         
     - name: 📦 Install Dependencies
       run: flutter pub get
@@ -40,16 +46,28 @@ jobs:
     - name: 🧹 Clean Build
       run: |
         flutter clean
-        cd ios
-        rm -rf Pods
-        rm -rf .symlinks
-        rm -rf Flutter/Flutter.framework
-        rm -rf Flutter/Flutter.podspec
+        if [ -d "ios" ]; then
+          cd ios
+          rm -rf Pods || true
+          rm -rf .symlinks || true
+          rm -rf Flutter/Flutter.framework || true
+          rm -rf Flutter/Flutter.podspec || true
+          rm -rf Podfile.lock || true
+          cd ..
+        fi
         
     - name: 🍎 Pod Install
       run: |
-        cd ios
-        pod install --repo-update
+        if [ -d "ios" ]; then
+          cd ios
+          # Update CocoaPods repo first
+          pod repo update || echo "Pod repo update failed, continuing..."
+          # Install pods
+          pod install --verbose
+        else
+          echo "❌ iOS directory not found"
+          exit 1
+        fi
         
     - name: ⚙️ Create Export Options
       run: |
