@@ -13,6 +13,7 @@ import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gallery_saver/gallery_saver.dart';
+import 'package:flutter_keychain/flutter_keychain.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
@@ -40,8 +41,12 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.green,
         scaffoldBackgroundColor: const Color(0xFFF8F5F7),
+        fontFamily: 'Tajawal',
       ),
-      home: const HomeScreen(),
+      home: const Directionality(
+        textDirection: TextDirection.rtl,
+        child: HomeScreen(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -109,77 +114,66 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _generateHardwareId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // التحقق من وجود Hardware ID محفوظ مسبقاً
-      String? savedHardwareId = prefs.getString('device_hardware_id');
-
-      if (savedHardwareId != null && savedHardwareId.isNotEmpty) {
-        // استخدام Hardware ID المحفوظ (ثابت)
-        setState(() {
-          _currentHardwareId = savedHardwareId;
-        });
-
-        return;
-      }
-
-      // إنشاء Hardware ID جديد للمرة الأولى فقط - ثابت ولا يتغير
-      String hardwareId;
-
-      if (Platform.isIOS) {
-        // للـ iOS - استخدام معرف ثابت مبني على معلومات الجهاز
-        final deviceInfo = DeviceInfoPlugin();
-        final iosInfo = await deviceInfo.iosInfo;
-
-        // جمع معلومات الجهاز الثابتة
-        final deviceData = {
-          'identifierForVendor': iosInfo.identifierForVendor ?? 'unknown',
-          'model': iosInfo.model,
-          'systemName': iosInfo.systemName,
-          'name': iosInfo.name,
-        };
-
-        final deviceString = deviceData.values.join('|');
-        final bytes = utf8.encode(deviceString);
-        final digest = sha256.convert(bytes);
-        hardwareId = digest.toString();
-      } else {
-        // للـ Android - استخدام معرف ثابت مبني على معلومات الجهاز
-        final deviceInfo = DeviceInfoPlugin();
-        final androidInfo = await deviceInfo.androidInfo;
-
-        // جمع معلومات الجهاز الثابتة فقط
-        final deviceData = {
-          'androidId': androidInfo.id,
-          'manufacturer': androidInfo.manufacturer,
-          'model': androidInfo.model,
-          'brand': androidInfo.brand,
-          'product': androidInfo.product,
-          'hardware': androidInfo.hardware,
-          'device': androidInfo.device,
-        };
-
-        final deviceString = deviceData.values.where((v) => v != null).join('|');
-        final bytes = utf8.encode(deviceString);
-        final digest = sha256.convert(bytes);
-        hardwareId = digest.toString();
-      }
-
-      // حفظ Hardware ID ليبقى ثابت إلى الأبد
-      await prefs.setString('device_hardware_id', hardwareId);
+      // استخدام Keychain للحصول على UUID ثابت 100%
+      String hardwareId = await _getPersistentUUID();
 
       setState(() {
         _currentHardwareId = hardwareId;
       });
     } catch (e) {
       // في حالة الخطأ، إنشاء معرف بديل ثابت
-      final prefs = await SharedPreferences.getInstance();
-      String? savedHardwareId = prefs.getString('device_hardware_id');
-
       setState(() {
-        _currentHardwareId = savedHardwareId ?? 'fallback_id';
+        _currentHardwareId = 'fallback_${DateTime.now().millisecondsSinceEpoch}';
       });
     }
+  }
+
+  /// الحصول على UUID ثابت من Keychain - يبقى حتى بعد حذف التطبيق
+  Future<String> _getPersistentUUID() async {
+    const String key = 'persistentUUID';
+
+    try {
+      // محاولة قراءة UUID الموجود
+      String? existingUUID = await FlutterKeychain.get(key: key);
+
+      if (existingUUID.isNotEmpty) {
+        return existingUUID;
+      }
+
+      // إنشاء UUID جديد إذا لم يوجد
+      String newUUID = _generateUUID();
+
+      // حفظ في Keychain
+      await FlutterKeychain.put(key: key, value: newUUID);
+
+      return newUUID;
+    } catch (e) {
+      // في حالة فشل Keychain، استخدم SharedPreferences كبديل
+      final prefs = await SharedPreferences.getInstance();
+      String? savedUUID = prefs.getString('backup_uuid');
+
+      if (savedUUID != null && savedUUID.isNotEmpty) {
+        return savedUUID;
+      }
+
+      String newUUID = _generateUUID();
+      await prefs.setString('backup_uuid', newUUID);
+      return newUUID;
+    }
+  }
+
+  /// توليد UUID فريد
+  String _generateUUID() {
+    var random = Random();
+    var values = List<int>.generate(16, (i) => random.nextInt(256));
+
+    // تعديل البايتات لتتوافق مع UUID v4
+    values[6] = (values[6] & 0x0f) | 0x40; // Version 4
+    values[8] = (values[8] & 0x3f) | 0x80; // Variant bits
+
+    var hex = values.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
   }
 
   Future<void> _requestPermissions() async {
