@@ -38,11 +38,9 @@ jobs:
       run: |
         flutter --version
         flutter doctor -v
+        flutter config --enable-ios
         which flutter
         
-    - name: 📦 Install Dependencies
-      run: flutter pub get
-      
     - name: 🧹 Clean Build
       run: |
         flutter clean
@@ -56,10 +54,50 @@ jobs:
           cd ..
         fi
         
+    - name: 📦 Install Dependencies
+      run: |
+        flutter pub get
+        
+        # Ensure iOS platform files are generated
+        if [ ! -d "ios" ]; then
+          echo "🔧 Creating iOS platform files..."
+          flutter create --platforms=ios .
+        fi
+        
+        # Run pub get again to ensure all files are generated
+        flutter pub get --verbose
+        
+        # Verify that Generated.xcconfig was created
+        if [ -f "ios/Flutter/Generated.xcconfig" ]; then
+          echo "✅ Generated.xcconfig created successfully"
+          echo "Content preview:"
+          head -10 ios/Flutter/Generated.xcconfig
+        else
+          echo "❌ Generated.xcconfig not found, debugging..."
+          ls -la ios/Flutter/ || echo "Flutter directory not found"
+          echo "Trying to create iOS files manually..."
+          flutter create --platforms=ios .
+          flutter pub get
+        fi
+        
     - name: 🍎 Pod Install
       run: |
         if [ -d "ios" ]; then
           cd ios
+          # Verify Podfile exists
+          if [ ! -f "Podfile" ]; then
+            echo "❌ Podfile not found"
+            exit 1
+          fi
+          
+          # Verify Generated.xcconfig exists
+          if [ ! -f "Flutter/Generated.xcconfig" ]; then
+            echo "❌ Generated.xcconfig not found, running flutter pub get again..."
+            cd ..
+            flutter pub get
+            cd ios
+          fi
+          
           # Update CocoaPods repo first
           pod repo update || echo "Pod repo update failed, continuing..."
           # Install pods
