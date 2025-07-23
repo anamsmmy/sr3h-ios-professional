@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // محاولة قراءة UUID الموجود
       String? existingUUID = await FlutterKeychain.get(key: key);
 
-      if (existingUUID.isNotEmpty) {
+      if (existingUUID != null && existingUUID.isNotEmpty) {
         return existingUUID;
       }
 
