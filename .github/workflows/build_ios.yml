@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+  checks: write
+
 jobs:
   build_ios:
     runs-on: macos-latest
@@ -54,10 +59,10 @@ jobs:
         retention-days: 30
         
     - name: Create Release
-      if: github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: softprops/action-gh-release@v2
       with:
-        tag_name: v2.0.8
+        tag_name: v2.0.8-${{ github.run_number }}
         name: "محوّل سرعة الفيديو - الإصدار 2.0.8"
         body: |
           ## 🎯 التحديثات الجديدة في الإصدار 2.0.8
@@ -84,6 +89,11 @@ jobs:
           - مساحة تخزين كافية للفيديوهات
           - اتصال بالإنترنت للتفعيل
           
+          ### 📥 التحميل والتثبيت:
+          1. حمل ملف IPA المرفق
+          2. استخدم AltStore أو Sideloadly للتثبيت
+          3. فعل التطبيق بالبريد الإلكتروني
+          
           ---
           
           **تطوير:** SR3H Team  
@@ -92,5 +102,6 @@ jobs:
         files: SR3H_Video_Converter_v2.0.8.ipa
         draft: false
         prerelease: false
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
