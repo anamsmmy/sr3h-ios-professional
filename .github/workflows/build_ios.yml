@@ -1,0 +1,96 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build_ios:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.5'
+        channel: 'stable'
+        
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Clean build
+      run: flutter clean
+      
+    - name: Get dependencies again
+      run: flutter pub get
+      
+    - name: Build iOS (without signing)
+      run: |
+        flutter build ios --release --no-codesign
+        
+    - name: Create Payload directory
+      run: |
+        mkdir -p Payload
+        
+    - name: Copy app to Payload
+      run: |
+        cp -r build/ios/iphoneos/Runner.app Payload/
+        
+    - name: Create IPA file
+      run: |
+        zip -r SR3H_Video_Converter_v2.0.8.ipa Payload/
+        
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: SR3H_Video_Converter_IPA
+        path: SR3H_Video_Converter_v2.0.8.ipa
+        retention-days: 30
+        
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v2.0.8
+        name: "محوّل سرعة الفيديو - الإصدار 2.0.8"
+        body: |
+          ## 🎯 التحديثات الجديدة في الإصدار 2.0.8
+          
+          ### ✅ المميزات الجديدة:
+          - 🎨 واجهة مستخدم محسنة مع تصميم أنيق
+          - 🔐 نظام Hardware ID ثابت لا يتغير
+          - ⏰ التحقق من التفعيل كل 24 ساعة فقط
+          - 📁 زر "استعراض التحويلات" برتقالي بعد النجاح
+          - ✅ صندوق النجاح الأخضر مع تفاصيل الملف
+          - 📱 حفظ الفيديو في ألبوم SR3H بالمعرض
+          - 📊 شريط تقدم أثناء التحويل
+          - 💡 نصائح TikTok عند أول استخدام
+          - ⚡ تحسينات الأداء وتنظيف الكود
+          
+          ### 🛠️ التحسينات التقنية:
+          - تحسين نظام التفعيل
+          - تحسين واجهة "حول التطبيق"
+          - إصلاح مشاكل الذاكرة
+          - تحسين معالجة الأخطاء
+          
+          ### 📱 متطلبات التشغيل:
+          - iOS 12.0 أو أحدث
+          - مساحة تخزين كافية للفيديوهات
+          - اتصال بالإنترنت للتفعيل
+          
+          ---
+          
+          **تطوير:** SR3H Team  
+          **الموقع:** www.SR3H.com  
+          **الدعم:** support@sr3h.com
+        files: SR3H_Video_Converter_v2.0.8.ipa
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
