@@ -1,5 +1,9 @@
 # 🎬 محوّل سرعة SR3H v2.0.8 - Video Speed Converter
 
+![Version](https://img.shields.io/badge/version-2.0.8-blue.svg)
+![Platform](https://img.shields.io/badge/platform-iOS-lightgrey.svg)
+![Flutter](https://img.shields.io/badge/Flutter-3.24.5-blue.svg)
+
 تطبيق متقدم لتحويل سرعة الفيديو إلى 60 إطار في الثانية مع واجهة عربية كاملة ومحسّنة.
 
 ## ✨ الميزات الجديدة في v2.0.8
