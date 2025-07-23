@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
       title: 'محوّل سرعة',
       theme: ThemeData(
         primarySwatch: Colors.green,
-        fontFamily: 'Tajawal',
+        scaffoldBackgroundColor: const Color(0xFFF8F5F7),
       ),
       home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
@@ -67,8 +67,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _authenticatedEmail;
   double _conversionProgressPercent = 0.0;
   String _currentHardwareId = '';
-  String? _convertedVideoPath;
+
   String _conversionSuccessMessage = '';
+  bool _showTipsOnce = true;
 
   @override
   void initState() {
@@ -118,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentHardwareId = savedHardwareId;
         });
-        print('🔐 Using saved Hardware ID');
+
         return;
       }
 
@@ -170,41 +171,20 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentHardwareId = hardwareId;
       });
-
-      print('🔐 New Hardware ID generated and saved permanently');
     } catch (e) {
-      print('❌ Error generating hardware ID: $e');
-
       // في حالة الخطأ، إنشاء معرف بديل ثابت
       final prefs = await SharedPreferences.getInstance();
       String? savedHardwareId = prefs.getString('device_hardware_id');
 
-      if (savedHardwareId != null) {
-        setState(() {
-          _currentHardwareId = savedHardwareId;
-        });
-      } else {
-        // إنشاء معرف بديل ثابت مبني على الوقت الحالي (سيبقى ثابت)
-        final fallbackId = 'fallback_${DateTime.now().millisecondsSinceEpoch}';
-        final bytes = utf8.encode(fallbackId);
-        final digest = sha256.convert(bytes);
-        final hardwareId = digest.toString();
-
-        await prefs.setString('device_hardware_id', hardwareId);
-        setState(() {
-          _currentHardwareId = hardwareId;
-        });
-      }
+      setState(() {
+        _currentHardwareId = savedHardwareId ?? 'fallback_id';
+      });
     }
   }
 
   Future<void> _requestPermissions() async {
     if (Platform.isIOS) {
-      await [
-        Permission.photos,
-        Permission.camera,
-        Permission.microphone,
-      ].request();
+      await [Permission.photos, Permission.camera, Permission.microphone].request();
     } else {
       await [
         Permission.storage,
@@ -283,9 +263,9 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       } else if (existingHardwareId == _currentHardwareId) {
         // نفس الجهاز - تحديث آخر فحص
-        await supabase.from('email_subscriptions').update({
-          'last_check': DateTime.now().toIso8601String(),
-        }).eq('email', email);
+        await supabase
+            .from('email_subscriptions')
+            .update({'last_check': DateTime.now().toIso8601String()}).eq('email', email);
 
         // حفظ البيانات محلياً
         final prefs = await SharedPreferences.getInstance();
@@ -315,6 +295,83 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showImportantTips() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: const Color(0xFFF8F5F7),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'نصائح هامة',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TipItem(
+                      icon: '🔹',
+                      text: 'لا تحرر الفيديو بعد التحويل أو تعدل عليه. ضع في TikTok كما هو.',
+                    ),
+                    TipItem(
+                      icon: '🔹',
+                      text: 'رفع الفيديو من متصفح "Google Chrome" في موقع TikTok المصمم للكمبيوتر.',
+                    ),
+                    TipItem(
+                      icon: '🔹',
+                      text: 'عند رفع الفيديو إلى حسابك على TikTok، اختر دولة "اليابان".',
+                    ),
+                    TipItem(
+                      icon: '🔹',
+                      text: 'شغّل VPN قبل رفع الفيديو، مثل التطبيق المجاني (Psiphon).',
+                    ),
+                    TipItem(
+                      icon: '🔹',
+                      text: 'أحيانًا TikTok يقرأ معلومات الشريحة SIM Card ليتعرف على بلدك.',
+                    ),
+                    TipItem(
+                      icon: '✅',
+                      text: 'إذا لم تنجح الطريقة، أخرج الشريحة واعتمد على شبكة WiFi فقط.',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _pickVideo();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('إغلاق', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickVideo() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -327,16 +384,21 @@ class _HomeScreenState extends State<HomeScreen> {
           _selectedVideoPath = result.files.single.path;
           _selectedVideoName = result.files.single.name;
           _isConverted = false;
-          _convertedVideoPath = null;
           _conversionSuccessMessage = '';
         });
+
+        // إظهار Snackbar للتأكيد
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم اختيار الفيديو: $_selectedVideoName'),
+            backgroundColor: const Color(0xFF4CAF50),
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في اختيار الفيديو: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('خطأ في اختيار الفيديو: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -367,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final documentsDir = await getApplicationDocumentsDirectory();
         final random = Random();
         final randomNumber = random.nextInt(999999) + 100000;
-        outputPath = '${documentsDir.path}/SR3H_${randomNumber}.mp4';
+        outputPath = '${documentsDir.path}/SR3H-$randomNumber.mp4';
       } else {
         // للـ Android - حفظ في DCIM/SR3H
         Directory? directory = Directory('/storage/emulated/0/DCIM/SR3H');
@@ -377,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final random = Random();
         final randomNumber = random.nextInt(999999) + 100000;
-        outputPath = '${directory.path}/SR3H_${randomNumber}.mp4';
+        outputPath = '${directory.path}/SR3H-$randomNumber.mp4';
       }
 
       setState(() {
@@ -388,74 +450,73 @@ class _HomeScreenState extends State<HomeScreen> {
       // أمر FFmpeg لتحويل السرعة
       final command = '-itsscale 2 -i "$_selectedVideoPath" -c:v copy -c:a copy "$outputPath"';
 
-      print('🎬 تطبيق أمر FFmpeg: $command');
+      await FFmpegKit.executeAsync(
+        command,
+        (ffmpeg.Session session) async {
+          final returnCode = await session.getReturnCode();
 
-      await FFmpegKit.executeAsync(command, (ffmpeg.Session session) async {
-        final returnCode = await session.getReturnCode();
-
-        setState(() {
-          _isConverting = false;
-          _conversionProgress = '';
-          _conversionProgressPercent = 1.0;
-        });
-
-        if (ReturnCode.isSuccess(returnCode)) {
-          // التحقق من وجود الملف المحول
-          final outputFile = File(outputPath);
-          if (await outputFile.exists()) {
-            final fileSizeMB = (await outputFile.length()) / (1024 * 1024);
-
-            // حفظ الفيديو في المعرض
-            try {
-              if (Platform.isIOS) {
-                // للـ iOS - حفظ في Photos
-                await GallerySaver.saveVideo(outputPath, albumName: 'SR3H');
-              } else {
-                // للـ Android - حفظ في المعرض
-                await GallerySaver.saveVideo(outputPath, albumName: 'SR3H');
-              }
-              print('📱 Video saved to gallery successfully');
-            } catch (e) {
-              print('⚠️ Could not save to gallery: $e');
-            }
-
-            setState(() {
-              _isConverted = true;
-              _convertedVideoPath = outputPath;
-            });
-
-            final outputFileName = outputPath.split('/').last;
-            setState(() {
-              _conversionSuccessMessage = '✅ تم تحويل الفيديو بنجاح!\n'
-                  'الملف: $outputFileName\n'
-                  'الحجم: ${fileSizeMB.toStringAsFixed(2)} MB\n'
-                  '📱 تم حفظ الفيديو في معرض الصور - ألبوم SR3H';
-            });
-          } else {
-            throw Exception('الملف المحول غير موجود');
-          }
-        } else {
-          final logs = await session.getAllLogs();
-          String errorMessage = 'فشل في تحويل الفيديو';
-          if (logs.isNotEmpty) {
-            errorMessage += '\nالخطأ: ${logs.last.getMessage()}';
-          }
-          throw Exception(errorMessage);
-        }
-      }, (Log log) {
-        // تحديث التقدم
-        setState(() {
-          _conversionProgress = 'جاري المعالجة... ${log.getMessage()}';
-        });
-      }, (Statistics statistics) {
-        // تحديث نسبة التقدم
-        if (statistics.getTime() > 0) {
           setState(() {
-            _conversionProgressPercent = 0.2 + (statistics.getTime() / 100000) * 0.8;
-            if (_conversionProgressPercent > 1.0) _conversionProgressPercent = 1.0;
+            _isConverting = false;
+            _conversionProgress = '';
+            _conversionProgressPercent = 1.0;
           });
-        }
-      });
+
+          if (ReturnCode.isSuccess(returnCode)) {
+            // التحقق من وجود الملف المحول
+            final outputFile = File(outputPath);
+            if (await outputFile.exists()) {
+              final fileSizeMB = (await outputFile.length()) / (1024 * 1024);
+
+              // حفظ الفيديو في المعرض
+              try {
+                if (Platform.isIOS) {
+                  // للـ iOS - حفظ في Photos
+                  await GallerySaver.saveVideo(outputPath, albumName: 'SR3H');
+                } else {
+                  // للـ Android - حفظ في المعرض
+                  await GallerySaver.saveVideo(outputPath, albumName: 'SR3H');
+                }
+              } catch (e) {}
+
+              setState(() {
+                _isConverted = true;
+              });
+
+              final outputFileName = outputPath.split('/').last;
+              setState(() {
+                _conversionSuccessMessage = '✅ تم تحويل الفيديو بنجاح!\n'
+                    'الملف: $outputFileName\n'
+                    'الحجم: ${fileSizeMB.toStringAsFixed(1)} MB\n'
+                    '📁 تم الحفظ في الاستوديو';
+              });
+            } else {
+              throw Exception('الملف المحول غير موجود');
+            }
+          } else {
+            final logs = await session.getAllLogs();
+            String errorMessage = 'فشل في تحويل الفيديو';
+            if (logs.isNotEmpty) {
+              errorMessage += '\nالخطأ: ${logs.last.getMessage()}';
+            }
+            throw Exception(errorMessage);
+          }
+        },
+        (Log log) {
+          // تحديث التقدم
+          setState(() {
+            _conversionProgress = 'جاري المعالجة... ${log.getMessage()}';
+          });
+        },
+        (Statistics statistics) {
+          // تحديث نسبة التقدم
+          if (statistics.getTime() > 0) {
+            setState(() {
+              _conversionProgressPercent = 0.2 + (statistics.getTime() / 100000) * 0.8;
+              if (_conversionProgressPercent > 1.0) _conversionProgressPercent = 1.0;
+            });
+          }
+        },
+      );
     } catch (e) {
       setState(() {
         _isConverting = false;
@@ -463,12 +524,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _conversionProgressPercent = 0.0;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في التحويل: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('خطأ في التحويل: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -495,7 +553,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('لا يمكن فتح المعرض. يرجى البحث عن ألبوم SR3H في تطبيق الصور'),
           backgroundColor: Colors.orange,
         ),
@@ -503,13 +561,141 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: const Color(0xFFF8F5F7),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'حول التطبيق',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'تطبيق سرعة لتصحيح معلومات الفيديو ليصبح 60 فريم على التيك توك',
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'اسم المطوّر: منصة سرعة',
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () async {
+                    const url = 'https://www.SR3H.com';
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url));
+                    }
+                  },
+                  child: const Text(
+                    'الموقع الإلكتروني: www.SR3H.com',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'رقم الإصدار: 2.0.1',
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'حالة التفعيل: مفعل',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _authenticatedEmail ?? '',
+                        style: const TextStyle(fontSize: 16, color: Colors.green),
+                        textAlign: TextAlign.right,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '© 2025 جميع الحقوق محفوظة',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('إغلاق', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('محوّل سرعة'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'محوّل سرعة',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF4CAF50),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info, color: Colors.white),
+            onPressed: _isAuthenticated ? _showAboutDialog : null,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -517,17 +703,35 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!_isAuthenticated) ...[
+              // قسم الشعار
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Image.asset('assets/images/logo.png', height: 80, fit: BoxFit.contain),
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // قسم تفعيل الاشتراك
               const Text(
-                'مرحباً بك في محوّل سرعة',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                'تفعيل التطبيق',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'أدخل بريدك الإلكتروني للتحقق من الاشتراك',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              const Text(
-                'يرجى إدخال البريد الإلكتروني للتفعيل:',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 10),
+
+              // حقل البريد الإلكتروني
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -536,22 +740,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   border: OutlineInputBorder(),
                   labelText: 'البريد الإلكتروني',
                   hintText: 'example@email.com',
+                  prefixIcon: Icon(Icons.email),
                 ),
                 onSubmitted: (_) => _verifyEmail(),
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _verifyEmail,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+
+              // زر التفعيل
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _verifyEmail,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4CAF50),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'تفعيل التطبيق',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                 ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('تفعيل', style: TextStyle(fontSize: 18)),
               ),
               const SizedBox(height: 20),
+
+              // رسالة الحالة
               if (_message.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(15),
@@ -577,69 +793,251 @@ class _HomeScreenState extends State<HomeScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-            ] else ...[
+
+              const SizedBox(height: 40),
+
+              // معلومات أسفل الواجهة
               Container(
-                padding: const EdgeInsets.all(15),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  border: Border.all(color: Colors.green),
+                  color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 40),
-                    const SizedBox(height: 10),
-                    Text(
-                      'مرحباً $_authenticatedEmail',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    const Text(
+                      'محوّل سرعة - تحويل الفيديو إلى 60 إطار',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
                     const Text(
-                      'تم تفعيل حسابك بنجاح',
-                      style: TextStyle(fontSize: 16, color: Colors.green),
+                      'الإصدار: 2.0.1',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'نرحب باقتراحاتكم و ملاحظاتكم من خلال منصة سرعة.',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () async {
+                        const url = 'https://www.SR3H.com';
+                        if (await canLaunchUrl(Uri.parse(url))) {
+                          await launchUrl(Uri.parse(url));
+                        }
+                      },
+                      child: const Text(
+                        'www.SR3H.com',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'شكرًا لدعمكم لنا، وثقتكم بنا',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
+            ] else ...[
+              // الصفحة الرئيسية بعد التفعيل
+
+              // قسم الشعار
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Image.asset('assets/images/logo.png', height: 80, fit: BoxFit.contain),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // رسالة الترحيب
+              const Text(
+                'مرحباً بك في محوّل سرعة',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF2E7D32),
+                ),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 30),
 
-              // قسم اختيار الفيديو
+              // قسم اختيار/معلومات الفيديو
               Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        '📹 اختيار الفيديو',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Icon(
+                            _selectedVideoName != null ? Icons.videocam : Icons.description,
+                            color: const Color(0xFF4CAF50),
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _selectedVideoName != null ? 'معلومات الفيديو' : 'اختيار الفيديو',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 15),
-                      ElevatedButton.icon(
-                        onPressed: _isConverting ? null : _pickVideo,
-                        icon: const Icon(Icons.video_library),
-                        label: const Text('اختيار فيديو'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
+                      if (_selectedVideoName == null) ...[
+                        // زر اختيار الفيديو
+                        ElevatedButton.icon(
+                          onPressed: _isConverting
+                              ? null
+                              : () {
+                                  if (_showTipsOnce) {
+                                    _showImportantTips();
+                                    _showTipsOnce = false;
+                                  } else {
+                                    _pickVideo();
+                                  }
+                                },
+                          icon: const Icon(Icons.movie),
+                          label: const Text('اختر ملف فيديو 🎬'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
                         ),
-                      ),
-                      if (_selectedVideoName != null) ...[
-                        const SizedBox(height: 10),
+                      ] else ...[
+                        // عرض اسم الفيديو المختار
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.blue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
                           ),
                           child: Text(
-                            'الفيديو المختار: $_selectedVideoName',
-                            style: const TextStyle(fontSize: 14),
+                            _selectedVideoName!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ),
+                        const SizedBox(height: 15),
+
+                        // الأزرار
+                        Row(
+                          children: [
+                            // زر تغيير الفيديو
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _isConverting
+                                    ? null
+                                    : () {
+                                        if (_showTipsOnce) {
+                                          _showImportantTips();
+                                          _showTipsOnce = false;
+                                        } else {
+                                          _pickVideo();
+                                        }
+                                      },
+                                icon: const Icon(Icons.movie),
+                                label: const Text('تغيير الفيديو'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // زر بدء التحويل أو استعراض التحويلات
+                            Expanded(
+                              child: _isConverted
+                                  ? ElevatedButton.icon(
+                                      onPressed: _openGallery,
+                                      icon: const Icon(Icons.folder),
+                                      label: const Text('استعراض التحويلات'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.orange,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    )
+                                  : ElevatedButton.icon(
+                                      onPressed: _isConverting ? null : _startConversion,
+                                      icon: _isConverting
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Icon(Icons.play_arrow),
+                                      label: Text(
+                                        _isConverting ? 'جاري التحويل...' : 'بدء التحويل',
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF4CAF50),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+
+                        // شريط التقدم
+                        if (_isConverting) ...[
+                          const SizedBox(height: 15),
+                          LinearProgressIndicator(
+                            value: _conversionProgressPercent,
+                            backgroundColor: Colors.grey.shade300,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _conversionProgress,
+                            style: const TextStyle(fontSize: 14, color: Colors.black54),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ],
                     ],
                   ),
@@ -648,92 +1046,208 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 20),
 
-              // قسم التحويل
+              // قسم النصائح قبل التحويل
               Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        '⚡ تحويل السرعة',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      const Row(
+                        children: [
+                          Icon(Icons.lightbulb, color: Colors.amber, size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            'نصائح قبل التحويل',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 15),
-                      ElevatedButton.icon(
-                        onPressed: (_selectedVideoPath != null && !_isConverting)
-                            ? _startConversion
-                            : null,
-                        icon: _isConverting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                      const Column(
+                        children: [
+                          TipItem(icon: '✅', text: 'أن يكون نوع الفيديو MP4'),
+                          TipItem(icon: '✅', text: 'عرض الفيديو 1080 بكسل'),
+                          TipItem(icon: '✅', text: 'ارتفاع الفيديو 1920 بكسل'),
+                          TipItem(icon: '✅', text: 'أن يكون الفيديو طولي'),
+                          TipItem(icon: '✅', text: 'أن يكون الفيديو 60 إطار في الثانية'),
+                          TipItem(icon: '✅', text: 'أن لا يحتوي الفيديو على شعارات أو حقوق مكتوبة'),
+                          TipItem(
+                            icon: '✅',
+                            text: 'أن لا يحتوي الفيديو على فلاتر أو تأثيرات غير واقعية',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+
+                      // نصيحة إضافية
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.lightbulb, color: Colors.blue, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'نصيحة: تجنب وجود فراغات سوداء في الأعلى أو الأسفل',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                              )
-                            : const Icon(Icons.play_arrow),
-                        label: Text(_isConverting ? 'جاري التحويل...' : 'بدء التحويل'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (_isConverting) ...[
-                        const SizedBox(height: 15),
-                        LinearProgressIndicator(
-                          value: _conversionProgressPercent,
-                          backgroundColor: Colors.grey.shade300,
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _conversionProgress,
-                          style: const TextStyle(fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
 
+              const SizedBox(height: 20),
+
+              // ملاحظة تقنية
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.videocam, color: Colors.green, size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'نستخدم تقنية متقدمة لمعالجة الفيديو بجودة عالية',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // صندوق النجاح
               if (_isConverted) ...[
                 const SizedBox(height: 20),
-                Card(
-                  color: Colors.green.withOpacity(0.1),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 50),
-                        const SizedBox(height: 10),
-                        Text(
-                          _conversionSuccessMessage,
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green, size: 50),
+                      const SizedBox(height: 10),
+                      Text(
+                        _conversionSuccessMessage,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
                         ),
-                        const SizedBox(height: 15),
-                        ElevatedButton.icon(
-                          onPressed: _openGallery,
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text('فتح معرض الصور'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
               ],
+
+              const SizedBox(height: 30),
+
+              // معلومات أسفل الواجهة
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'محوّل سرعة - تحويل الفيديو إلى 60 إطار',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'نرحب باقتراحاتكم و ملاحظاتكم من خلال منصة سرعة.',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () async {
+                        const url = 'https://www.SR3H.com';
+                        if (await canLaunchUrl(Uri.parse(url))) {
+                          await launchUrl(Uri.parse(url));
+                        }
+                      },
+                      child: const Text(
+                        'www.SR3H.com',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'شكرًا لدعمكم لنا، وثقتكم بنا',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class TipItem extends StatelessWidget {
+  final String icon;
+  final String text;
+
+  const TipItem({super.key, required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+          ),
+        ],
       ),
     );
   }
