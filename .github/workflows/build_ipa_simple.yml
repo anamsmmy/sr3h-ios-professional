@@ -37,18 +37,24 @@ jobs:
       run: |
         mkdir -p Payload
         cp -r build/ios/iphoneos/Runner.app Payload/
-        zip -r SR3H_Video_Converter_v2.0.8.ipa Payload/
+        zip -r SR3H_Video_Converter_v2.0.9.ipa Payload/
         ls -la *.ipa
         
     - name: Upload IPA
       uses: actions/upload-artifact@v4
       with:
-        name: SR3H_Video_Converter_IPA_v2.0.8
-        path: SR3H_Video_Converter_v2.0.8.ipa
+        name: SR3H_Video_Converter_IPA_v2.0.9
+        path: SR3H_Video_Converter_v2.0.9.ipa
         retention-days: 30
         
     - name: Show success message
       run: |
         echo "✅ IPA build completed successfully!"
-        echo "📱 File: SR3H_Video_Converter_v2.0.8.ipa"
+        echo "📱 File: SR3H_Video_Converter_v2.0.9.ipa"
         echo "📥 Download from Artifacts section"
+        echo ""
+        echo "🔧 الإصلاحات الجديدة في v2.0.9:"
+        echo "✅ اتجاه النص RTL (من اليمين لليسار)"
+        echo "✅ أيقونة موحدة في جميع الأوضاع"
+        echo "✅ خط Tajawal المحسن"
+        echo "✅ Hardware ID ثابت بـ Keychain"
