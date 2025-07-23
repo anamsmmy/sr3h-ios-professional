@@ -21,14 +21,19 @@ dependencies:
   url_launcher: ^6.2.5
   gallery_saver: ^2.3.2
   flutter_keychain: ^2.4.0
-
-  # fork المجتمع – يجلب ثنائيات FFmpegKit 6.0‑2.LTS
-  ffmpeg_kit_flutter_new: ^2.0.0   # سيختار pub أحدث 2.x متاح
+  ffmpeg_kit_flutter_new: ^2.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "800x800.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
