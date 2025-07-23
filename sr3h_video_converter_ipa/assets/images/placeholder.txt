@@ -1,6 +1,0 @@
-# Assets Images Folder
-# Place your logo.png and other images here
-
-# Required images:
-# - logo.png (for app interface)
-# - icon.ico (for app icon - will be converted to appropriate formats)
